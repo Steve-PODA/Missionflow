@@ -1,0 +1,168 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Mission;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Redirect;
+use Inertia\Inertia;
+
+class MissionController extends Controller
+{
+    /**
+     * Affiche la liste des missions
+     */
+    public function index()
+    {
+        /** @var \App\Models\User $authUser */
+        $authUser     = auth()->user();
+        $isTechnicien = $authUser->hasRole('technicien');
+
+        $missionsQuery = Mission::with('users')->orderBy('date', 'desc');
+
+        if ($isTechnicien) {
+            $missionsQuery->whereHas('users', fn($q) => $q->where('users.id', $authUser->id));
+        }
+
+        $missions = $missionsQuery->get();
+
+        $team = User::with(['missions' => fn($q) => $q->where('status', 'in_progress')
+                ->select('missions.id', 'missions.title')])
+            ->get()
+            ->map(fn($user) => array_merge($user->toArray(), [
+                'active_mission'  => $user->missions->first(),
+                'computed_status' => $user->missions->isNotEmpty() ? 'deployed' : $user->availability,
+            ]));
+
+        return Inertia::render('Missions/Index', [
+            'missions' => $missions,
+            'team'     => $team,
+        ]);
+    }
+
+    /**
+     * Enregistre une nouvelle mission
+     */
+    public function store(Request $request)
+    {
+        // 1. Validation rigoureuse des données provenant de Vue
+        $validated = $request->validate([
+            'title'        => 'required|string|max:255',
+            'briefing'     => 'nullable|string',
+            'company'      => 'required|string|max:255',
+            'date'         => 'required|date',
+            'startTime'    => 'required|date_format:H:i',
+            'duration'     => 'required|numeric|in:0.5,1,2,4,8',
+            'priority'     => 'required|in:low,medium,high,urgent',
+            'location'     => 'required|string',
+            'selectedTeam' => 'required|array|min:1',
+            'selectedTeam.*' => 'exists:users,id',
+            'clientName'   => 'required|string',
+            'clientEmail'  => 'nullable|email',
+            'clientPhone'  => 'required|string',
+        ]);
+
+        $mission = Mission::create([
+            'title'        => $validated['title'],
+            'briefing'     => $validated['briefing'] ?? null,
+            'company'      => $validated['company'],
+            'date'         => $validated['date'],
+            'start_time'   => $validated['startTime'],
+            'duration'     => $validated['duration'],
+            'priority'     => $validated['priority'],
+            'location'     => $validated['location'],
+            'client_name'  => $validated['clientName'],
+            'client_email' => $validated['clientEmail'] ?? null,
+            'client_phone' => $validated['clientPhone'],
+            'status'       => 'pending',
+        ]);
+
+        // 3. Liaison avec l'équipe (Table pivot mission_user)
+        // La méthode sync() prend un tableau d'IDs et s'occupe de tout
+        $mission->users()->sync($validated['selectedTeam']);
+
+        // 4. Retourner vers le Dashboard avec un message
+        return Redirect::back()->with('success', 'Opération déployée avec succès.');
+    }
+
+    public function update(Request $request, Mission $mission)
+    {
+        $validated = $request->validate([
+            'title'          => 'required|string|max:255',
+            'briefing'       => 'nullable|string',
+            'company'        => 'required|string|max:255',
+            'date'           => 'required|date',
+            'startTime'      => 'required|date_format:H:i',
+            'duration'       => 'required|numeric|in:0.5,1,2,4,8',
+            'priority'       => 'required|in:low,medium,high,urgent',
+            'location'       => 'required|string',
+            'selectedTeam'   => 'required|array|min:1',
+            'selectedTeam.*' => 'exists:users,id',
+            'clientName'     => 'required|string',
+            'clientEmail'    => 'nullable|email',
+            'clientPhone'    => 'required|string',
+        ]);
+
+        $mission->update([
+            'title'        => $validated['title'],
+            'briefing'     => $validated['briefing'] ?? null,
+            'company'      => $validated['company'],
+            'date'         => $validated['date'],
+            'start_time'   => $validated['startTime'],
+            'duration'     => $validated['duration'],
+            'priority'     => $validated['priority'],
+            'location'     => $validated['location'],
+            'client_name'  => $validated['clientName'],
+            'client_email' => $validated['clientEmail'] ?? null,
+            'client_phone' => $validated['clientPhone'],
+        ]);
+
+        $mission->users()->sync($validated['selectedTeam']);
+
+        return Redirect::back()->with('success', 'Opération mise à jour.');
+    }
+
+    public function reschedule(Request $request, Mission $mission)
+    {
+        $request->validate([
+            'date'       => 'required|date',
+            'start_time' => 'required|date_format:H:i',
+        ]);
+
+        $oldDate = $mission->date;
+        $oldTime = substr($mission->start_time, 0, 5);
+
+        $mission->update([
+            'date'       => $request->date,
+            'start_time' => $request->start_time,
+        ]);
+
+        activity('mission')
+            ->causedBy(auth()->user())
+            ->performedOn($mission)
+            ->withProperties(['old_date' => $oldDate, 'old_time' => $oldTime, 'new_date' => $request->date, 'new_time' => $request->start_time])
+            ->log("« {$mission->title} » replanifiée du {$oldDate} {$oldTime} au {$request->date} {$request->start_time}");
+
+        return back()->with('success', "{$mission->title} reprogrammée à {$request->start_time}.");
+    }
+
+    public function updateStatus(Request $request, Mission $mission)
+    {
+        $request->validate([
+            'status' => 'required|in:pending,in_progress,completed,cancelled',
+        ]);
+
+        $oldStatus = $mission->status;
+        $mission->update(['status' => $request->status]);
+
+        $statusLabels = ['pending' => 'En attente', 'in_progress' => 'En opération', 'completed' => 'Accomplie', 'cancelled' => 'Abandonnée'];
+        activity('mission')
+            ->causedBy(auth()->user())
+            ->performedOn($mission)
+            ->withProperties(['old' => $oldStatus, 'new' => $request->status])
+            ->log("Statut de « {$mission->title} » changé : {$statusLabels[$oldStatus]} → {$statusLabels[$request->status]}");
+
+        return back()->with('success', 'Statut de l\'opération mis à jour.');
+    }
+}
