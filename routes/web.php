@@ -29,9 +29,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('missions.index');
 
     // Missions — écriture : admin, manager uniquement
+    Route::get('/missions/create', [MissionController::class, 'create'])
+        ->middleware('permission:create missions')
+        ->name('missions.create');
+
     Route::post('/missions', [MissionController::class, 'store'])
         ->middleware('permission:create missions')
         ->name('missions.store');
+
+    Route::get('/missions/{mission}/edit', [MissionController::class, 'edit'])
+        ->middleware('permission:edit missions')
+        ->name('missions.edit');
 
     Route::patch('/missions/{mission}/status', [MissionController::class, 'updateStatus'])
         ->middleware('permission:update mission status')

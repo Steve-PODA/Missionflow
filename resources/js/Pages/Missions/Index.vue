@@ -7,16 +7,16 @@
           <h1 class="page-title">Opérations</h1>
           <p class="page-sub">{{ missions.length }} opération{{ missions.length > 1 ? 's' : '' }} enregistrée{{ missions.length > 1 ? 's' : '' }}</p>
         </div>
-        <button v-if="$page.props.auth.can.create_missions" class="btn-primary" @click="isCreating = true">+ Déployer une opération</button>
+        <Link v-if="$page.props.auth.can.create_missions" :href="route('missions.create')" class="btn-primary">
+          + Déployer une opération
+        </Link>
       </div>
 
       <div v-if="!$page.props.auth.can.create_missions" class="technicien-banner">
         🪖 Vue personnelle — vous ne voyez que les opérations auxquelles vous êtes affecté.
       </div>
 
-      <MissionCreator v-if="isCreating" :team-members="team" @close="isCreating = false" />
-      <MissionDetail  v-if="detailMission && !editingMission" :mission="detailMission" @close="detailMission = null" @edit="openEditor" />
-      <MissionEditor  v-if="editingMission" :mission="editingMission" :team-members="team" @close="editingMission = null" />
+      <MissionDetail  v-if="detailMission" :mission="detailMission" @close="detailMission = null" @edit="openEditor" />
       <MissionList :missions="missions" :all-team-members="team" @detail="detailMission = $event" @edit="openEditor" />
 
     </div>
@@ -26,28 +26,24 @@
 <script>
 import AppLayout      from '@/Layouts/AppLayout.vue'
 import MissionList    from '@/Components/MissionList.vue'
-import MissionCreator from '@/Components/MissionCreator.vue'
-import MissionEditor  from '@/Components/MissionEditor.vue'
 import MissionDetail  from '@/Components/MissionDetail.vue'
+import { Link, router } from '@inertiajs/vue3'
 
 export default {
   name: 'MissionsIndex',
-  components: { AppLayout, MissionList, MissionCreator, MissionEditor, MissionDetail },
+  components: { AppLayout, MissionList, MissionDetail, Link },
   props: {
     missions: { type: Array, default: () => [] },
     team:     { type: Array, default: () => [] },
   },
   data() {
     return {
-      isCreating:     false,
       detailMission:  null,
-      editingMission: null,
     }
   },
   methods: {
     openEditor(mission) {
-      this.detailMission  = null
-      this.editingMission = mission
+      router.visit(route('missions.edit', mission.id))
     },
   },
 }
