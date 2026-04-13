@@ -16,7 +16,7 @@ class DatabaseSeeder extends Seeder
 
         // 2. Commandant en chef → rôle admin
         $commandant = User::create([
-            'name'               => 'Général Moreau',
+            'name'               => 'Général PIT👺🔥',
             'email'              => 'test@example.com',
             'password'           => Hash::make('password'),
             'email_verified_at'  => now(),

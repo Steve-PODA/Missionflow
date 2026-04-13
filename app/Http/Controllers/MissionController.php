@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Mission;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
 
@@ -15,6 +16,19 @@ class MissionController extends Controller
      */
     public function index()
     {
+        $now = Carbon::now();
+
+        Mission::query()
+            ->where('status', 'pending')
+            ->where(function ($query) use ($now) {
+                $query->whereDate('date', '<', $now->toDateString())
+                    ->orWhere(function ($query) use ($now) {
+                        $query->whereDate('date', $now->toDateString())
+                            ->whereTime('start_time', '<=', $now->format('H:i:s'));
+                    });
+            })
+            ->update(['status' => 'in_progress']);
+
         /** @var \App\Models\User $authUser */
         $authUser     = auth()->user();
         $isTechnicien = $authUser->hasRole('technicien');

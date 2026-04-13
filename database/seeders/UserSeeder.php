@@ -11,11 +11,11 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         User::create([
-            'name'     => 'Général Moreau',
+            'name'     => 'Général PIT👺🔥',
             'email'    => 'admin@exemple.com',
             'password' => Hash::make('password'),
             'role'     => 'Commandant en chef',
-            'avatar'   => 'https://ui-avatars.com/api/?name=General+Moreau&background=1e1f2e&color=fff',
+            'avatar'   => 'https://ui-avatars.com/api/?name=General+PIT👺🔥&background=1e1f2e&color=fff',
         ]);
 
         $personnel = [
@@ -24,6 +24,7 @@ class UserSeeder extends Seeder
             ['name' => 'Lieutenant Dubois',  'email' => 'dubois@exemple.com',     'role' => 'Agent de terrain'],
             ['name' => 'Sergent Martin',     'email' => 'martin@exemple.com',     'role' => 'Agent de terrain'],
             ['name' => 'Caporal Petit',      'email' => 'petit@exemple.com',      'role' => 'Agent de terrain'],
+
         ];
 
         foreach ($personnel as $p) {
