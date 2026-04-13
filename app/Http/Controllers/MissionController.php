@@ -6,6 +6,7 @@ use App\Models\Mission;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
 
@@ -30,7 +31,7 @@ class MissionController extends Controller
             ->update(['status' => 'in_progress']);
 
         /** @var \App\Models\User $authUser */
-        $authUser     = auth()->user();
+        $authUser     = Auth::user();
         $isTechnicien = $authUser->hasRole('technicien');
 
         $missionsQuery = Mission::with('users')->orderBy('date', 'desc');
@@ -153,7 +154,7 @@ class MissionController extends Controller
         ]);
 
         activity('mission')
-            ->causedBy(auth()->user())
+            ->causedBy(Auth::user())
             ->performedOn($mission)
             ->withProperties(['old_date' => $oldDate, 'old_time' => $oldTime, 'new_date' => $request->date, 'new_time' => $request->start_time])
             ->log("« {$mission->title} » replanifiée du {$oldDate} {$oldTime} au {$request->date} {$request->start_time}");
@@ -172,7 +173,7 @@ class MissionController extends Controller
 
         $statusLabels = ['pending' => 'En attente', 'in_progress' => 'En opération', 'completed' => 'Accomplie', 'cancelled' => 'Abandonnée'];
         activity('mission')
-            ->causedBy(auth()->user())
+            ->causedBy(Auth::user())
             ->performedOn($mission)
             ->withProperties(['old' => $oldStatus, 'new' => $request->status])
             ->log("Statut de « {$mission->title} » changé : {$statusLabels[$oldStatus]} → {$statusLabels[$request->status]}");
