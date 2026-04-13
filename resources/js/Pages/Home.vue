@@ -57,16 +57,26 @@
       <!-- MAIN GRID -->
       <section class="main-grid">
         <!-- PROCHAINE MISSION -->
-        <div class="mission-next">
+        <div
+          class="mission-next"
+          :class="{ 'is-clickable': !!nextMission }"
+          @click="openNextMissionDetail"
+        >
           <div class="mission-header">
             <span class="section-title">🎯 Prochaine opération</span>
-            <span v-if="timeTilNext" class="badge">{{ timeTilNext }}</span>
+            <div class="meta-badges">
+              <span v-if="currentNextMission?.priorityLabel" class="priority-badge" :class="currentNextMission.priorityClass">
+                {{ currentNextMission.priorityLabel }}
+              </span>
+              <span v-if="timeTilNext" class="badge">{{ timeTilNext }}</span>
+            </div>
           </div>
 
           <template v-if="currentNextMission">
             <h2>{{ currentNextMission.title }}</h2>
             <p class="company">{{ currentNextMission.company }}</p>
             <div class="mission-info">
+              <div>📅<strong>{{ currentNextMission.date }}</strong></div>
               <div>🕘 <strong>{{ currentNextMission.start }} – {{ currentNextMission.end }}</strong></div>
               <div>📍 <strong>{{ currentNextMission.location }}</strong></div>
               <div>🪖 <strong>{{ currentNextMission.assignedTo }}</strong></div>
@@ -74,7 +84,7 @@
           </template>
           <p v-else class="company" style="margin-top:16px;">Aucune opération planifiée.</p>
 
-          <button class="btn-details" @click="goToMissions">Voir toutes les opérations →</button>
+          <button class="btn-details" @click.stop="goToMissions">Voir toutes les opérations →</button>
         </div>
 
         <!-- ÉQUIPE -->
@@ -144,6 +154,21 @@ export default {
       detailMission:  null,
       editingMission: null,
       overdueOpen:    true,
+      now:            new Date(),
+      countdownTimer: null,
+    }
+  },
+
+  mounted() {
+    this.countdownTimer = setInterval(() => {
+      this.now = new Date()
+    }, 1000)
+  },
+
+  beforeUnmount() {
+    if (this.countdownTimer) {
+      clearInterval(this.countdownTimer)
+      this.countdownTimer = null
     }
   },
 
@@ -164,31 +189,51 @@ export default {
       const [h, m]     = startTime.split(':').map(Number)
       const endMinutes = h * 60 + m + duration * 60
       const endTime    = String(Math.floor(endMinutes / 60)).padStart(2, '0') + ':' + String(endMinutes % 60).padStart(2, '0')
+      const priorityMeta = this.missionPriorityMeta(this.nextMission.priority)
       return {
         id:         this.nextMission.id,
         title:      this.nextMission.title,
         company:    this.nextMission.company,
+        date:       this.formatDate(this.nextMission.date),
         start:      startTime,
         end:        endTime,
         location:   this.nextMission.location,
         assignedTo: this.nextMission.users?.map(u => u.name).join(', ') || 'Non assigné',
+        priorityLabel: priorityMeta.label,
+        priorityClass: priorityMeta.className,
       }
     },
 
     timeTilNext() {
       if (!this.nextMission) return null
       const dt   = new Date(`${this.nextMission.date}T${this.nextMission.start_time}`)
-      const diff = dt - new Date()
+      const diff = dt - this.now
       if (diff < 0) return 'En cours'
-      const h = Math.floor(diff / 3600000)
-      const m = Math.floor((diff % 3600000) / 60000)
-      if (h > 0) return `Dans ${h}h${m > 0 ? m + 'min' : ''}`
-      if (m > 0) return `Dans ${m} min`
+      const totalSeconds = Math.floor(diff / 1000)
+      const h = Math.floor(totalSeconds / 3600)
+      const m = Math.floor((totalSeconds % 3600) / 60)
+      const s = totalSeconds % 60
+      if (h > 0) return `Dans ${h}h ${String(m).padStart(2, '0')}min`
+      if (m > 0) return `Dans ${m}min ${String(s).padStart(2, '0')}s`
+      if (s > 0) return `Dans ${s}s`
       return 'Maintenant'
     },
   },
 
   methods: {
+    missionPriorityMeta(priority) {
+      const normalized = String(priority || '').toLowerCase()
+      if (normalized === 'urgent') return { label: 'Urgente', className: 'priority-urgent' }
+      if (normalized === 'high') return { label: 'Haute', className: 'priority-high' }
+      if (normalized === 'medium') return { label: 'Moyenne', className: 'priority-medium' }
+      if (normalized === 'low') return { label: 'Basse', className: 'priority-low' }
+      return { label: 'Standard', className: 'priority-medium' }
+    },
+    openNextMissionDetail() {
+      if (!this.nextMission) return
+      this.detailMission = this.nextMission
+      this.editingMission = null
+    },
     goToMissions() { router.visit(route('missions.index')) },
     formatDate(date) {
       if (!date) return ''
@@ -350,7 +395,7 @@ export default {
 /* MAIN GRID */
 .main-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 1.6fr 1fr;
   gap: 24px;
   margin-bottom: 28px;
 }
@@ -362,11 +407,24 @@ export default {
   padding: 24px;
   box-shadow: 0 2px 20px rgba(79,111,238,.12);
 }
+.mission-next.is-clickable {
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.mission-next.is-clickable:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(79,111,238,.14);
+}
 .mission-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
+}
+.meta-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .section-title { font-size: 13px; font-weight: 600; color: #6b7280; }
 .badge {
@@ -377,6 +435,16 @@ export default {
   font-size: 12px;
   font-weight: 600;
 }
+.priority-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.priority-urgent { background: #fee2e2; color: #b91c1c; }
+.priority-high { background: #ffedd5; color: #c2410c; }
+.priority-medium { background: #fef3c7; color: #b45309; }
+.priority-low { background: #dcfce7; color: #166534; }
 .mission-next h2 { font-size: 20px; font-weight: 700; color: #1a1f2e; margin: 0 0 4px; }
 .company { font-size: 13px; color: #6b7280; margin: 0 0 16px; }
 .mission-info { display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #374151; }
