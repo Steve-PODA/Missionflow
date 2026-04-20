@@ -1,12 +1,14 @@
 <template>
   <div class="app-shell">
-    <!-- SIDEBAR -->
     <aside class="sidebar">
-      <div class="sidebar-logo">
-        <div class="logo-icon">📅</div>
-        <div class="logo-text">
-          <span class="logo-name">MissionFlow</span>
-          <span class="logo-sub">Commandement & Opérations</span>
+      <div class="sidebar-header">
+        <img src="/images/drapeau.png" alt="Drapeau Burkina Faso" class="drapeau-img"/>
+        <div class="sidebar-logo">
+          <div class="logo-icon">📅</div>
+          <div class="logo-text">
+            <span class="logo-name">MissionFlow</span>
+            <span class="logo-sub">Commandement & Opérations</span>
+          </div>
         </div>
       </div>
 
@@ -55,10 +57,7 @@
       </div>
     </aside>
 
-    <!-- CONTENU PRINCIPAL -->
     <main class="main-content">
-
-      <!-- TOP BAR -->
       <header class="topbar">
         <div class="topbar-left">
           <div class="topbar-page">{{ pageTitle }}</div>
@@ -79,9 +78,16 @@
       <div class="page-content">
         <slot />
       </div>
+
+      <footer class="footer">
+        <span>◆ MissionFlow v2.1 — Gendarmerie Nationale du Burkina Faso</span>
+        <div style="display:flex;gap:8px">
+          <span class="footer-badge">Réseau sécurisé</span>
+          <span class="footer-badge">{{ new Date().getFullYear() }}</span>
+        </div>
+      </footer>
     </main>
 
-    <!-- TOAST -->
     <Transition name="toast">
       <div v-if="toast" class="toast" :class="'toast-' + toastType">
         <span class="toast-icon">{{ toastType === 'success' ? '✓' : '✕' }}</span>
@@ -96,18 +102,17 @@ import { ref, computed, watch } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3'
 import GlobalSearch from '@/Components/GlobalSearch.vue'
 
-const page = usePage()
-
-const toast    = ref(null)
+const page      = usePage()
+const toast     = ref(null)
 const toastType = ref('success')
-let toastTimer = null
+let toastTimer  = null
 
 watch(
   () => page.props.flash,
   (flash) => {
     if (flash?.success || flash?.error) {
       clearTimeout(toastTimer)
-      toast.value    = flash.success || flash.error
+      toast.value     = flash.success || flash.error
       toastType.value = flash.success ? 'success' : 'error'
       toastTimer = setTimeout(() => { toast.value = null }, 3500)
     }
@@ -122,13 +127,13 @@ const initials = computed(() => {
 
 const pageTitle = computed(() => {
   const titles = {
-    'home':             'Centre Opérationnel',
-    'missions.index':   'Opérations',
-    'personnel.index':  'Personnel',
-    'profile.edit':     'Dossier Personnel',
-    'reports.index':    'Rapports',
-    'activity.index':   'Journal d\'activité',
-    'users.index':      'Administration',
+    'home':            'Centre Opérationnel',
+    'missions.index':  'Opérations',
+    'personnel.index': 'Personnel',
+    'profile.edit':    'Dossier Personnel',
+    'reports.index':   'Rapports',
+    'activity.index':  "Journal d'activité",
+    'users.index':     'Administration',
   }
   for (const [routeName, title] of Object.entries(titles)) {
     if (route().current(routeName)) return title
@@ -137,22 +142,88 @@ const pageTitle = computed(() => {
 })
 
 const currentDate = computed(() => {
-  return new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  return new Date().toLocaleDateString('fr-FR', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+  })
 })
 </script>
 
 <style scoped>
+/* ══════════════════════════════════════════════
+   GENDARMERIE NATIONALE BURKINA FASO
+   Fond nuit  : #2A1F5C
+   Cartes/badges : #2A1F5C (même bleu sombre)
+   Textes     : #EDE7F6 (blanc lavande)
+   Accent     : #5B4A9E · Bordures : #5B4A9E
+══════════════════════════════════════════════ */
+
+/* ─── FOND + RAYURES COURTES CHEVAUCHÉES ──── */
 .app-shell {
   display: flex;
   min-height: 100vh;
-  background: #f6f8fc;
+  background-color: #2A1F5C;
+  position: relative;
+  overflow: hidden;
 }
 
-/* ─── SIDEBAR ─────────────────────────────── */
+.app-shell::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(
+      175deg,
+      transparent 0px, transparent 40px,
+      rgba(91,74,158,0.55) 40px, rgba(91,74,158,0.55) 44px,
+      transparent 44px, transparent 90px
+    ),
+    repeating-linear-gradient(
+      170deg,
+      transparent 0px, transparent 25px,
+      rgba(58,45,122,0.65) 25px, rgba(58,45,122,0.65) 28px,
+      transparent 28px, transparent 70px
+    ),
+    repeating-linear-gradient(
+      178deg,
+      transparent 0px, transparent 60px,
+      rgba(123,107,196,0.32) 60px, rgba(123,107,196,0.32) 62px,
+      transparent 62px, transparent 110px
+    ),
+    repeating-linear-gradient(
+      172deg,
+      transparent 0px, transparent 15px,
+      rgba(91,74,158,0.45) 15px, rgba(91,74,158,0.45) 19px,
+      transparent 19px, transparent 55px
+    ),
+    repeating-linear-gradient(
+      176deg,
+      transparent 0px, transparent 80px,
+      rgba(42,31,92,0.80) 80px, rgba(42,31,92,0.80) 85px,
+      transparent 85px, transparent 140px
+    ),
+    repeating-linear-gradient(
+      169deg,
+      transparent 0px, transparent 35px,
+      rgba(158,143,212,0.22) 35px, rgba(158,143,212,0.22) 37px,
+      transparent 37px, transparent 95px
+    );
+  background-size:
+    180px 120px, 220px 90px, 160px 150px,
+    200px 80px,  240px 170px, 190px 100px;
+  background-position:
+    0px 0px, 30px 20px, 70px 10px,
+    110px 40px, 20px 60px, 150px 30px;
+}
+
+.sidebar, .main-content { position: relative; z-index: 1; }
+
+/* ─── SIDEBAR ───────────────────────────────── */
 .sidebar {
   width: 240px;
   min-width: 240px;
-  background: #1e1f2e;
+  background: rgba(20,14,50,0.97);
   display: flex;
   flex-direction: column;
   padding: 24px 16px;
@@ -160,296 +231,165 @@ const currentDate = computed(() => {
   top: 0;
   height: 100vh;
   overflow-y: auto;
+  border-right: 2px solid #5B4A9E;
 }
+
+.sidebar-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.drapeau-img { width: 160px; height: auto; object-fit: contain; margin-bottom: 10px; }
 
 .sidebar-logo {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 36px;
+  margin-bottom: 28px;
   padding: 0 8px;
 }
 
 .logo-icon {
-  width: 40px;
-  height: 40px;
-  background: #4f6fee;
+  width: 40px; height: 40px;
+  background: #2A1F5C;
   border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; flex-shrink: 0;
+  border: 1px solid rgba(91,74,158,0.6);
 }
 
-.logo-name {
-  display: block;
-  font-size: 15px;
-  font-weight: 700;
-  color: #fff;
-}
+.logo-name { display: block; font-size: 15px; font-weight: 700; color: #EDE7F6; letter-spacing: 0.5px; }
+.logo-sub  { display: block; font-size: 11px; color: #EDE7F6; opacity: 0.65; }
 
-.logo-sub {
-  display: block;
-  font-size: 11px;
-  color: #6b7280;
-}
-
-/* ─── NAV ─────────────────────────────────── */
-.sidebar-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 1;
-}
+/* ─── NAV ───────────────────────────────────── */
+.sidebar-nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 
 .nav-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 11px 12px;
-  border-radius: 10px;
-  color: #9ca3af;
-  text-decoration: none;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.15s;
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 12px; border-radius: 10px;
+  color: #EDE7F6; text-decoration: none;
+  font-size: 14px; font-weight: 500;
+  transition: all 0.15s; opacity: 0.75;
 }
 
-.nav-item svg {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-}
-
-.nav-item:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: #e5e7eb;
-}
-
+.nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+.nav-item:hover { background: rgba(91,74,158,0.30); opacity: 1; }
 .nav-item.active {
-  background: #4f6fee;
-  color: #fff;
+  background: #2A1F5C;
+  color: #EDE7F6; opacity: 1;
+  border: 1px solid rgba(91,74,158,0.6);
 }
 
-/* ─── FOOTER ──────────────────────────────── */
+/* ─── SIDEBAR FOOTER ────────────────────────── */
 .sidebar-footer {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  display: flex; align-items: center; gap: 10px;
   padding: 12px 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  border-top: 1px solid rgba(91,74,158,0.4);
   margin-top: 16px;
 }
 
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
-}
+.user-info { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
 
 .user-avatar {
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
-  background: #4f6fee;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 13px;
-  font-weight: 700;
+  width: 36px; height: 36px; min-width: 36px;
+  background: #2A1F5C; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #EDE7F6; font-size: 13px; font-weight: 700;
+  border: 1px solid rgba(91,74,158,0.6);
 }
 
-.user-details {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.user-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: #e5e7eb;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.user-role {
-  font-size: 11px;
-  color: #6b7280;
-}
+.user-details { display: flex; flex-direction: column; min-width: 0; }
+.user-name { font-size: 13px; font-weight: 600; color: #EDE7F6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-role { font-size: 11px; color: #EDE7F6; opacity: 0.65; }
 
 .logout-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #6b7280;
-  padding: 6px;
-  border-radius: 8px;
-  display: flex;
-  transition: color 0.15s, background 0.15s;
+  background: none; border: none; cursor: pointer;
+  color: #EDE7F6; opacity: 0.6; padding: 6px;
+  border-radius: 8px; display: flex; transition: all 0.15s;
 }
+.logout-btn:hover { color: #ef4444; opacity: 1; background: rgba(239,68,68,0.15); }
+.logout-btn svg { width: 18px; height: 18px; }
 
-.logout-btn:hover {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.1);
-}
+/* ─── MAIN ──────────────────────────────────── */
+.main-content { flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+.page-content { flex: 1; overflow-y: auto; }
 
-.logout-btn svg {
-  width: 18px;
-  height: 18px;
-}
-
-/* ─── MAIN ────────────────────────────────── */
-.main-content {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
-}
-
-.page-content {
-  flex: 1;
-  overflow-y: auto;
-}
-
-/* ─── TOP BAR ─────────────────────────────── */
+/* ─── TOP BAR ───────────────────────────────── */
 .topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 32px;
-  height: 64px;
-  min-height: 64px;
-  background: #fff;
-  border-bottom: 1px solid #e5e7eb;
-  flex-shrink: 0;
-  z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 32px; height: 64px; min-height: 64px;
+  background: rgba(20,14,50,0.97);
+  border-bottom: 3px solid #5B4A9E;
+  flex-shrink: 0; z-index: 100;
 }
 
-.topbar-left {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.topbar-page {
-  font-size: 16px;
-  font-weight: 700;
-  color: #1a1f2e;
-  line-height: 1;
-}
-
-.topbar-date {
-  font-size: 12px;
-  color: #9ca3af;
-  text-transform: capitalize;
-}
-
-.topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.topbar-user {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
+.topbar-left { display: flex; flex-direction: column; gap: 2px; }
+.topbar-page { font-size: 16px; font-weight: 700; color: #EDE7F6; line-height: 1; letter-spacing: 0.3px; }
+.topbar-date { font-size: 12px; color: #EDE7F6; opacity: 0.70; text-transform: capitalize; }
+.topbar-right { display: flex; align-items: center; gap: 16px; }
+.topbar-user  { display: flex; align-items: center; gap: 10px; }
 
 .topbar-avatar {
-  width: 36px;
-  height: 36px;
-  background: #4f6fee;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 13px;
-  font-weight: 700;
+  width: 36px; height: 36px;
+  background: #2A1F5C; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #EDE7F6; font-size: 13px; font-weight: 700;
+  flex-shrink: 0; border: 1px solid rgba(91,74,158,0.6);
+}
+
+.topbar-user-info { display: flex; flex-direction: column; }
+.topbar-user-name { font-size: 13px; font-weight: 600; color: #EDE7F6; }
+.topbar-user-role { font-size: 11px; color: #EDE7F6; opacity: 0.70; }
+
+/* ─── FOOTER ────────────────────────────────── */
+.footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 32px;
+  background: rgba(20,14,50,0.97);
+  border-top: 3px solid #5B4A9E;
   flex-shrink: 0;
 }
 
-.topbar-user-info {
-  display: flex;
-  flex-direction: column;
+.footer span { font-size: 11px; color: #EDE7F6; opacity: 0.80; letter-spacing: 0.3px; }
+
+.footer-badge {
+  background: #2A1F5C !important;
+  color: #EDE7F6 !important;
+  font-size: 10px !important;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(91,74,158,0.6);
+  opacity: 1 !important;
 }
 
-.topbar-user-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: #1a1f2e;
-}
-
-.topbar-user-role {
-  font-size: 11px;
-  color: #9ca3af;
-}
-
-/* ─── TOAST ───────────────────────────────── */
+/* ─── TOAST ─────────────────────────────────── */
 .toast {
-  position: fixed;
-  bottom: 28px;
-  right: 28px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 20px;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 500;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-  z-index: 9999;
-  max-width: 360px;
+  position: fixed; bottom: 28px; right: 28px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 20px; border-radius: 12px;
+  font-size: 14px; font-weight: 500;
+  box-shadow: 0 8px 30px rgba(42,31,92,0.4);
+  z-index: 9999; max-width: 360px;
 }
 
-.toast-success {
-  background: #1a1f2e;
-  color: #fff;
-  border-left: 4px solid #22c55e;
-}
+.toast-success { background: #2A1F5C; color: #EDE7F6; border-left: 4px solid #7B6BC4; }
+.toast-error   { background: #2A1F5C; color: #EDE7F6; border-left: 4px solid #ef4444; }
+.toast-icon    { font-size: 16px; font-weight: 700; }
+.toast-success .toast-icon { color: #7B6BC4; }
+.toast-error   .toast-icon { color: #ef4444; }
 
-.toast-error {
-  background: #1a1f2e;
-  color: #fff;
-  border-left: 4px solid #ef4444;
-}
+.toast-enter-active, .toast-leave-active { transition: all 0.3s ease; }
+.toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(12px); }
 
-.toast-icon {
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.toast-success .toast-icon { color: #22c55e; }
-.toast-error  .toast-icon  { color: #ef4444; }
-
-.toast-enter-active, .toast-leave-active {
-  transition: all 0.3s ease;
-}
-.toast-enter-from, .toast-leave-to {
-  opacity: 0;
-  transform: translateY(12px);
-}
-
-/* ─── RESPONSIVE ──────────────────────────── */
+/* ─── RESPONSIVE ────────────────────────────── */
 @media (max-width: 768px) {
-  .sidebar {
-    width: 60px;
-    min-width: 60px;
-    padding: 16px 8px;
-  }
+  .sidebar { width: 60px; min-width: 60px; padding: 16px 8px; }
   .logo-text, .nav-item span, .user-details, .logo-sub { display: none; }
   .sidebar-logo { justify-content: center; margin-bottom: 24px; padding: 0; }
   .nav-item { justify-content: center; padding: 12px; }
   .user-info { justify-content: center; }
+  .drapeau-img { width: 36px; }
 }
 </style>
