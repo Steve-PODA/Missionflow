@@ -8,9 +8,9 @@
           <h1 class="page-title">Centre Opérationnel</h1>
           <p class="page-sub">Agent {{ $page.props.auth.user.name }} — {{ $page.props.auth.user.role || 'Personnel' }}</p>
         </div>
-        <Link v-if="$page.props.auth.can.create_missions" :href="route('missions.create')" class="btn-primary">
+        <button v-if="$page.props.auth.can.create_missions" class="btn-primary" @click="creatorOpen = true">
           + Déployer une opération
-        </Link>
+        </button>
       </div>
 
       <div v-if="!$page.props.auth.can.create_missions" class="technicien-banner">
@@ -120,6 +120,8 @@
         <MissionDetail v-if="detailMission" :mission="detailMission" @close="detailMission = null" @edit="openEditor" />
       </div>
 
+      <MissionCreator v-if="creatorOpen" :team-members="team" @close="creatorOpen = false" />
+
 
     </div>
   </AppLayout>
@@ -130,12 +132,13 @@ import AppLayout      from '@/Layouts/AppLayout.vue'
 import WeeklyCalendar from '@/Components/WeeklyCalendar.vue'
 import MissionList    from '@/Components/MissionList.vue'
 import MissionDetail  from '@/Components/MissionDetail.vue'
-import { Link, router } from '@inertiajs/vue3'
+import MissionCreator from '@/Components/MissionCreator.vue'
+import { router } from '@inertiajs/vue3'
 
 export default {
   name: 'Home',
 
-  components: { AppLayout, WeeklyCalendar, MissionList, MissionDetail, Link },
+  components: { AppLayout, WeeklyCalendar, MissionList, MissionDetail, MissionCreator },
 
   props: {
     missions:    { type: Array,  default: () => [] },
@@ -148,6 +151,7 @@ export default {
   data() {
     return {
       detailMission:  null,
+      creatorOpen:    false,
       overdueOpen:    true,
       now:            new Date(),
       countdownTimer: null,

@@ -7,9 +7,9 @@
           <h1 class="page-title">Opérations</h1>
           <p class="page-sub">{{ missions.length }} opération{{ missions.length > 1 ? 's' : '' }} enregistrée{{ missions.length > 1 ? 's' : '' }}</p>
         </div>
-        <Link v-if="$page.props.auth.can.create_missions" :href="route('missions.create')" class="btn-primary">
+        <button v-if="$page.props.auth.can.create_missions" class="btn-primary" @click="creatorOpen = true">
           + Déployer une opération
-        </Link>
+        </button>
       </div>
 
       <div v-if="!$page.props.auth.can.create_missions" class="technicien-banner">
@@ -18,6 +18,7 @@
 
       <MissionDetail  v-if="detailMission" :mission="detailMission" @close="detailMission = null" @edit="openEditor" />
       <MissionList :missions="missions" :all-team-members="team" @detail="detailMission = $event" @edit="openEditor" />
+      <MissionCreator v-if="creatorOpen" :team-members="team" @close="creatorOpen = false" />
 
     </div>
   </AppLayout>
@@ -27,18 +28,20 @@
 import AppLayout      from '@/Layouts/AppLayout.vue'
 import MissionList    from '@/Components/MissionList.vue'
 import MissionDetail  from '@/Components/MissionDetail.vue'
-import { Link, router } from '@inertiajs/vue3'
+import MissionCreator from '@/Components/MissionCreator.vue'
+import { router } from '@inertiajs/vue3'
 
 export default {
   name: 'MissionsIndex',
-  components: { AppLayout, MissionList, MissionDetail, Link },
+  components: { AppLayout, MissionList, MissionDetail, MissionCreator },
   props: {
     missions: { type: Array, default: () => [] },
     team:     { type: Array, default: () => [] },
   },
   data() {
     return {
-      detailMission:  null,
+      detailMission: null,
+      creatorOpen:   false,
     }
   },
   methods: {
