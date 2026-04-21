@@ -25,10 +25,6 @@
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <span>Personnel</span>
         </Link>
-        <Link :href="route('profile.edit')" class="nav-item" :class="{ active: route().current('profile.*') }">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          <span>Dossier Personnel</span>
-        </Link>
         <Link v-if="$page.props.auth.can.edit_missions" :href="route('reports.index')" class="nav-item" :class="{ active: route().current('reports.*') }">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
           <span>Rapports</span>
@@ -41,11 +37,36 @@
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/><path d="M18 14l2 2 4-4"/></svg>
           <span>Administration</span>
         </Link>
+        <Link v-if="$page.props.auth.can.manage_users" :href="route('whatsapp.index')" class="nav-item" :class="{ active: route().current('whatsapp.*') }">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>WhatsApp</span>
+        </Link>
       </nav>
 
       <div class="sidebar-footer">
         <div class="user-info">
-          <div class="user-avatar">{{ initials }}</div>
+          <div class="user-avatar" @click="toggleAvatarMenu" title="Modifier la photo">
+            <img v-if="$page.props.auth.user.avatar" :src="'/storage/' + $page.props.auth.user.avatar" :alt="$page.props.auth.user.name" class="avatar-img" />
+            <span v-else>{{ initials }}</span>
+            <div class="avatar-overlay">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+          </div>
+
+          <Transition name="avatar-menu">
+            <div v-if="showAvatarMenu" class="avatar-menu">
+              <button class="avatar-menu-item" @click="triggerAvatarInput">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Changer la photo
+              </button>
+              <button v-if="$page.props.auth.user.avatar" class="avatar-menu-item avatar-menu-item--danger" @click="deleteAvatar">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                Supprimer la photo
+              </button>
+            </div>
+          </Transition>
+
+          <input ref="avatarInput" type="file" accept="image/jpeg,image/png,image/webp" class="avatar-hidden-input" @change="uploadAvatar" />
           <div class="user-details">
             <span class="user-name">{{ $page.props.auth.user.name }}</span>
             <span class="user-role">{{ $page.props.auth.user.role || 'Utilisateur' }}</span>
@@ -98,12 +119,13 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
-import { Link, usePage } from '@inertiajs/vue3'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { Link, usePage, useForm, router } from '@inertiajs/vue3'
 import GlobalSearch from '@/Components/GlobalSearch.vue'
 
-const page      = usePage()
-const toast     = ref(null)
+const page = usePage()
+
+const toast    = ref(null)
 const toastType = ref('success')
 let toastTimer  = null
 
@@ -149,77 +171,15 @@ const currentDate = computed(() => {
 </script>
 
 <style scoped>
-/* ══════════════════════════════════════════════
-   GENDARMERIE NATIONALE BURKINA FASO
-   Fond nuit  : #2A1F5C
-   Cartes/badges : #2A1F5C (même bleu sombre)
-   Textes     : #EDE7F6 (blanc lavande)
-   Accent     : #5B4A9E · Bordures : #5B4A9E
-══════════════════════════════════════════════ */
-
-/* ─── FOND + RAYURES COURTES CHEVAUCHÉES ──── */
 .app-shell {
   display: flex;
   min-height: 100vh;
-  background-color: #2A1F5C;
-  position: relative;
-  overflow: hidden;
-}
-
-.app-shell::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image:
-    repeating-linear-gradient(
-      175deg,
-      transparent 0px, transparent 40px,
-      rgba(91,74,158,0.55) 40px, rgba(91,74,158,0.55) 44px,
-      transparent 44px, transparent 90px
-    ),
-    repeating-linear-gradient(
-      170deg,
-      transparent 0px, transparent 25px,
-      rgba(58,45,122,0.65) 25px, rgba(58,45,122,0.65) 28px,
-      transparent 28px, transparent 70px
-    ),
-    repeating-linear-gradient(
-      178deg,
-      transparent 0px, transparent 60px,
-      rgba(123,107,196,0.32) 60px, rgba(123,107,196,0.32) 62px,
-      transparent 62px, transparent 110px
-    ),
-    repeating-linear-gradient(
-      172deg,
-      transparent 0px, transparent 15px,
-      rgba(91,74,158,0.45) 15px, rgba(91,74,158,0.45) 19px,
-      transparent 19px, transparent 55px
-    ),
-    repeating-linear-gradient(
-      176deg,
-      transparent 0px, transparent 80px,
-      rgba(42,31,92,0.80) 80px, rgba(42,31,92,0.80) 85px,
-      transparent 85px, transparent 140px
-    ),
-    repeating-linear-gradient(
-      169deg,
-      transparent 0px, transparent 35px,
-      rgba(158,143,212,0.22) 35px, rgba(158,143,212,0.22) 37px,
-      transparent 37px, transparent 95px
-    );
-  background-size:
-    180px 120px, 220px 90px, 160px 150px,
-    200px 80px,  240px 170px, 190px 100px;
-  background-position:
-    0px 0px, 30px 20px, 70px 10px,
-    110px 40px, 20px 60px, 150px 30px;
+  background: #f6f8fc;
 }
 
 .sidebar, .main-content { position: relative; z-index: 1; }
 
-/* ─── SIDEBAR ───────────────────────────────── */
+/* ─── SIDEBAR ─────────────────────────────── */
 .sidebar {
   width: 240px;
   min-width: 240px;
@@ -290,14 +250,26 @@ const currentDate = computed(() => {
   margin-top: 16px;
 }
 
-.user-info { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
 
 .user-avatar {
-  width: 36px; height: 36px; min-width: 36px;
-  background: #2A1F5C; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  color: #EDE7F6; font-size: 13px; font-weight: 700;
-  border: 1px solid rgba(91,74,158,0.6);
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  background: #4f6fee;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .user-details { display: flex; flex-direction: column; min-width: 0; }
@@ -318,50 +290,77 @@ const currentDate = computed(() => {
 
 /* ─── TOP BAR ───────────────────────────────── */
 .topbar {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 32px; height: 64px; min-height: 64px;
-  background: rgba(20,14,50,0.97);
-  border-bottom: 3px solid #5B4A9E;
-  flex-shrink: 0; z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  height: 64px;
+  min-height: 64px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+  z-index: 100;
 }
 
-.topbar-left { display: flex; flex-direction: column; gap: 2px; }
-.topbar-page { font-size: 16px; font-weight: 700; color: #EDE7F6; line-height: 1; letter-spacing: 0.3px; }
-.topbar-date { font-size: 12px; color: #EDE7F6; opacity: 0.70; text-transform: capitalize; }
-.topbar-right { display: flex; align-items: center; gap: 16px; }
-.topbar-user  { display: flex; align-items: center; gap: 10px; }
+.topbar-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.topbar-page {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1f2e;
+  line-height: 1;
+}
+
+.topbar-date {
+  font-size: 12px;
+  color: #9ca3af;
+  text-transform: capitalize;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 
 .topbar-avatar {
-  width: 36px; height: 36px;
-  background: #2A1F5C; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  color: #EDE7F6; font-size: 13px; font-weight: 700;
-  flex-shrink: 0; border: 1px solid rgba(91,74,158,0.6);
-}
-
-.topbar-user-info { display: flex; flex-direction: column; }
-.topbar-user-name { font-size: 13px; font-weight: 600; color: #EDE7F6; }
-.topbar-user-role { font-size: 11px; color: #EDE7F6; opacity: 0.70; }
-
-/* ─── FOOTER ────────────────────────────────── */
-.footer {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 32px;
-  background: rgba(20,14,50,0.97);
-  border-top: 3px solid #5B4A9E;
+  width: 36px;
+  height: 36px;
+  background: #4f6fee;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
   flex-shrink: 0;
 }
 
-.footer span { font-size: 11px; color: #EDE7F6; opacity: 0.80; letter-spacing: 0.3px; }
+.topbar-user-info {
+  display: flex;
+  flex-direction: column;
+}
 
-.footer-badge {
-  background: #2A1F5C !important;
-  color: #EDE7F6 !important;
-  font-size: 10px !important;
-  padding: 3px 10px;
-  border-radius: 20px;
-  border: 1px solid rgba(91,74,158,0.6);
-  opacity: 1 !important;
+.topbar-user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1f2e;
+}
+
+.topbar-user-role {
+  font-size: 11px;
+  color: #9ca3af;
 }
 
 /* ─── TOAST ─────────────────────────────────── */

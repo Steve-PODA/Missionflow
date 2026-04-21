@@ -27,6 +27,7 @@ class UserController extends Controller
                 'availability'   => $user->availability,
                 'spatie_role'    => $user->roles->first()?->name ?? 'technicien',
                 'missions_count' => $user->missions_count,
+                'is_blocked'     => (bool) $user->is_blocked,
             ]);
 
         $roles = Role::orderBy('name')->pluck('name');
@@ -91,6 +92,19 @@ class UserController extends Controller
         $user->syncRoles([$validated['spatie_role']]);
 
         return Redirect::back()->with('success', "{$user->name} a été mis à jour.");
+    }
+
+    public function toggleBlock(User $user)
+    {
+        if ($user->id === auth()->id()) {
+            return Redirect::back()->with('error', 'Vous ne pouvez pas bloquer votre propre compte.');
+        }
+
+        $user->update(['is_blocked' => ! $user->is_blocked]);
+
+        $action = $user->is_blocked ? 'bloqué' : 'débloqué';
+
+        return Redirect::back()->with('success', "{$user->name} a été {$action}.");
     }
 
     public function destroy(User $user)

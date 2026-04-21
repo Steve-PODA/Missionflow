@@ -92,18 +92,26 @@
       <div class="modal-actions">
         <button @click="$emit('close')" class="btn-secondary">Fermer</button>
         <div class="actions-right">
-          <button
-            v-if="canCancel(mission.status)"
-            class="btn-danger"
-            @click="changeStatus('cancelled')"
-          >✕ Abandonner</button>
-          <button
-            v-if="nextStatus"
-            class="btn-progress"
-            :class="'btn-' + nextStatus.value"
-            @click="changeStatus(nextStatus.value)"
-          >{{ nextStatus.label }}</button>
-          <button v-if="$page.props.auth.can.edit_missions" class="btn-edit" @click="$emit('edit', mission)">✏️ Modifier</button>
+          <template v-if="$page.props.auth.can.edit_missions && confirmDelete">
+            <span class="confirm-label">Confirmer la suppression ?</span>
+            <button class="btn-danger" @click="deleteMission">Oui, supprimer</button>
+            <button class="btn-secondary" @click="confirmDelete = false">Annuler</button>
+          </template>
+          <template v-else>
+            <button
+              v-if="canCancel(mission.status)"
+              class="btn-danger"
+              @click="changeStatus('cancelled')"
+            >✕ Abandonner</button>
+            <button
+              v-if="nextStatus"
+              class="btn-progress"
+              :class="'btn-' + nextStatus.value"
+              @click="changeStatus(nextStatus.value)"
+            >{{ nextStatus.label }}</button>
+            <button v-if="$page.props.auth.can.edit_missions" class="btn-edit" @click="$emit('edit', mission)">✏️ Modifier</button>
+            <button v-if="$page.props.auth.can.edit_missions" class="btn-delete" @click="confirmDelete = true">🗑️</button>
+          </template>
         </div>
       </div>
 
@@ -122,6 +130,12 @@ export default {
   },
 
   emits: ['close', 'edit'],
+
+  data() {
+    return {
+      confirmDelete: false,
+    }
+  },
 
   computed: {
     nextStatus() {
@@ -173,6 +187,11 @@ export default {
     changeStatus(status) {
       router.patch(route('missions.updateStatus', this.mission.id), { status }, {
         preserveScroll: true,
+        onSuccess: () => this.$emit('close'),
+      })
+    },
+    deleteMission() {
+      router.delete(route('missions.destroy', this.mission.id), {
         onSuccess: () => this.$emit('close'),
       })
     },
@@ -356,6 +375,26 @@ export default {
 .btn-in_progress:hover { background: #e0e7ff; }
 .btn-completed   { background: #e8f8ef; color: #22c55e; }
 .btn-completed:hover { background: #d1fae5; }
+
+.btn-delete {
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+  background: #fef2f2;
+  color: #ef4444;
+  transition: background 0.15s;
+}
+.btn-delete:hover { background: #fee2e2; }
+
+.confirm-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ef4444;
+  align-self: center;
+}
 
 .modal-content::-webkit-scrollbar { width: 5px; }
 .modal-content::-webkit-scrollbar-track { background: transparent; }
