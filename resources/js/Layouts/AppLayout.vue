@@ -123,9 +123,44 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { Link, usePage, useForm, router } from '@inertiajs/vue3'
 import GlobalSearch from '@/Components/GlobalSearch.vue'
 
-const page = usePage()
+const page           = usePage()
+const avatarInput    = ref(null)
+const showAvatarMenu = ref(false)
+const avatarForm     = useForm({ avatar: null })
 
-const toast    = ref(null)
+function toggleAvatarMenu() { showAvatarMenu.value = !showAvatarMenu.value }
+
+function closeAvatarMenu(e) {
+  if (!e.target.closest('.user-avatar') && !e.target.closest('.avatar-menu')) {
+    showAvatarMenu.value = false
+  }
+}
+
+onMounted(() => document.addEventListener('click', closeAvatarMenu))
+onUnmounted(() => document.removeEventListener('click', closeAvatarMenu))
+
+function triggerAvatarInput() {
+  showAvatarMenu.value = false
+  avatarInput.value.click()
+}
+
+function uploadAvatar(e) {
+  const file = e.target.files[0]
+  if (!file) return
+  avatarForm.avatar = file
+  avatarForm.post(route('profile.avatar'), {
+    forceFormData: true,
+    onSuccess: () => { avatarInput.value.value = '' },
+    onError:   () => { avatarInput.value.value = '' },
+  })
+}
+
+function deleteAvatar() {
+  showAvatarMenu.value = false
+  router.delete(route('profile.avatar.delete'))
+}
+
+const toast     = ref(null)
 const toastType = ref('success')
 let toastTimer  = null
 
@@ -171,15 +206,25 @@ const currentDate = computed(() => {
 </script>
 
 <style scoped>
+/* ══════════════════════════════════════════════
+   GENDARMERIE NATIONALE BURKINA FASO
+   Fond nuit  : #2A1F5C
+   Cartes/badges : #2A1F5C (même bleu sombre)
+   Textes     : #EDE7F6 (blanc lavande)
+   Accent     : #5B4A9E · Bordures : #5B4A9E
+══════════════════════════════════════════════ */
+
 .app-shell {
   display: flex;
   min-height: 100vh;
-  background: #f6f8fc;
+  background-color: #f3f4f6;
 }
 
 .sidebar, .main-content { position: relative; z-index: 1; }
 
-/* ─── SIDEBAR ─────────────────────────────── */
+.sidebar, .main-content { position: relative; z-index: 1; }
+
+/* ─── SIDEBAR ───────────────────────────────── */
 .sidebar {
   width: 240px;
   min-width: 240px;
@@ -250,27 +295,48 @@ const currentDate = computed(() => {
   margin-top: 16px;
 }
 
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
-}
+.user-info { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; position: relative; }
 
 .user-avatar {
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
-  background: #4f6fee;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 13px;
-  font-weight: 700;
+  width: 36px; height: 36px; min-width: 36px;
+  background: #2A1F5C; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #EDE7F6; font-size: 13px; font-weight: 700;
+  border: 1px solid rgba(91,74,158,0.6);
+  overflow: hidden; position: relative; cursor: pointer;
 }
+
+.avatar-img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+
+.avatar-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.45); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.15s;
+}
+.avatar-overlay svg { width: 14px; height: 14px; color: #fff; }
+.user-avatar:hover .avatar-overlay { opacity: 1; }
+.avatar-hidden-input { display: none; }
+
+.avatar-menu {
+  position: absolute; bottom: 50px; left: 0;
+  background: #fff; border: 1px solid #e5e7eb;
+  border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  padding: 6px; display: flex; flex-direction: column;
+  gap: 2px; min-width: 180px; z-index: 200;
+}
+.avatar-menu-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border: none; background: none;
+  border-radius: 7px; font-size: 13px; font-weight: 500;
+  color: #374151; cursor: pointer; text-align: left;
+  transition: background 0.12s; width: 100%;
+}
+.avatar-menu-item svg { width: 15px; height: 15px; flex-shrink: 0; }
+.avatar-menu-item:hover { background: #f3f4f6; }
+.avatar-menu-item--danger { color: #ef4444; }
+.avatar-menu-item--danger:hover { background: #fef2f2; }
+.avatar-menu-enter-active, .avatar-menu-leave-active { transition: opacity 0.15s, transform 0.15s; }
+.avatar-menu-enter-from, .avatar-menu-leave-to { opacity: 0; transform: translateY(6px); }
 
 .user-details { display: flex; flex-direction: column; min-width: 0; }
 .user-name { font-size: 13px; font-weight: 600; color: #EDE7F6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -290,77 +356,50 @@ const currentDate = computed(() => {
 
 /* ─── TOP BAR ───────────────────────────────── */
 .topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 32px;
-  height: 64px;
-  min-height: 64px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 32px; height: 64px; min-height: 64px;
   background: #fff;
   border-bottom: 1px solid #e5e7eb;
-  flex-shrink: 0;
-  z-index: 100;
+  flex-shrink: 0; z-index: 100;
 }
 
-.topbar-left {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.topbar-page {
-  font-size: 16px;
-  font-weight: 700;
-  color: #1a1f2e;
-  line-height: 1;
-}
-
-.topbar-date {
-  font-size: 12px;
-  color: #9ca3af;
-  text-transform: capitalize;
-}
-
-.topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.topbar-user {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
+.topbar-left { display: flex; flex-direction: column; gap: 2px; }
+.topbar-page { font-size: 16px; font-weight: 700; color: #111827; line-height: 1; letter-spacing: 0.3px; }
+.topbar-date { font-size: 12px; color: #6b7280; text-transform: capitalize; }
+.topbar-right { display: flex; align-items: center; gap: 16px; }
+.topbar-user  { display: flex; align-items: center; gap: 10px; }
 
 .topbar-avatar {
-  width: 36px;
-  height: 36px;
-  background: #4f6fee;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 13px;
-  font-weight: 700;
+  width: 36px; height: 36px;
+  background: #eef2ff; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #4f6fee; font-size: 13px; font-weight: 700;
+  flex-shrink: 0; border: 1px solid #c7d2fe;
+}
+
+.topbar-user-info { display: flex; flex-direction: column; }
+.topbar-user-name { font-size: 13px; font-weight: 600; color: #111827; }
+.topbar-user-role { font-size: 11px; color: #6b7280; }
+
+/* ─── FOOTER ────────────────────────────────── */
+.footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 32px;
+  background: #fff;
+  border-top: 1px solid #e5e7eb;
   flex-shrink: 0;
 }
 
-.topbar-user-info {
-  display: flex;
-  flex-direction: column;
-}
+.footer span { font-size: 11px; color: #6b7280; letter-spacing: 0.3px; }
 
-.topbar-user-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: #1a1f2e;
-}
-
-.topbar-user-role {
-  font-size: 11px;
-  color: #9ca3af;
+.footer-badge {
+  background: #f3f4f6 !important;
+  color: #374151 !important;
+  font-size: 10px !important;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid #e5e7eb;
+  opacity: 1 !important;
 }
 
 /* ─── TOAST ─────────────────────────────────── */
