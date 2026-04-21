@@ -20,7 +20,7 @@ class WhatsAppController extends Controller
                 'id'           => $log->id,
                 'user_name'    => $log->user?->name ?? '—',
                 'mission_title'=> $log->mission?->title ?? '—',
-                'phone_number' => $log->phone_number,
+                'phone_number' => $this->maskPhone($log->phone_number),
                 'template'     => $log->template,
                 'status'       => $log->status,
                 'trigger'      => $log->trigger,
@@ -38,6 +38,12 @@ class WhatsAppController extends Controller
             'logs'  => $logs,
             'stats' => $stats,
         ]);
+    }
+
+    private function maskPhone(string $phone): string
+    {
+        $clean = preg_replace('/\D/', '', $phone);
+        return substr($clean, 0, -4) ? substr($clean, 0, -4) . 'XXXX' : 'XXXX';
     }
 
     public function triggerReminders()

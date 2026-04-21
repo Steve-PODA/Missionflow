@@ -190,6 +190,16 @@ class MissionController extends Controller
             'status' => 'required|in:pending,in_progress,completed,cancelled',
         ]);
 
+        /** @var \App\Models\User $authUser */
+        $authUser = Auth::user();
+        if (!$authUser->can('edit missions')) {
+            abort_if(
+                !$mission->users()->where('users.id', $authUser->id)->exists(),
+                403,
+                'Vous n\'êtes pas affecté à cette opération.'
+            );
+        }
+
         $oldStatus = $mission->status;
         $mission->update(['status' => $request->status]);
 
@@ -208,9 +218,17 @@ class MissionController extends Controller
         return User::with(['missions' => fn($q) => $q->where('status', 'in_progress')
                 ->select('missions.id', 'missions.title')])
             ->get()
-            ->map(fn($user) => array_merge($user->toArray(), [
-                'active_mission'  => $user->missions->first(),
+            ->map(fn($user) => [
+                'id'              => $user->id,
+                'name'            => $user->name,
+                'role'            => $user->role,
+                'avatar'          => $user->avatar,
+                'availability'    => $user->availability,
+                'phone_number'    => $user->phone_number,
+                'email'           => $user->email,
+                'active_mission'  => $user->missions->first()?->only(['id', 'title']),
                 'computed_status' => $user->missions->isNotEmpty() ? 'deployed' : $user->availability,
-            ]));
+                'missions_count'  => $user->missions->count(),
+            ]);
     }
 }
