@@ -5,7 +5,8 @@
     <div class="cal-header">
       <div>
         <h2 class="cal-title">Planning opérationnel</h2>
-        <p class="cal-sub">{{ viewMode === 'week' ? formatDateRange : formatMonthTitle }}</p>
+
+        <p class="today-indicator">Aujourd'hui: {{ todayFormatted }}</p>
       </div>
       <div class="cal-controls">
         <!-- Toggle vue -->
@@ -17,7 +18,7 @@
         <button @click="prev" class="nav-btn">
           <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
         </button>
-        <button @click="goToToday" class="today-btn">Aujourd'hui</button>
+        <button @click="goToToday" class="today-btn">{{ periodButtonLabel }}</button>
         <button @click="next" class="nav-btn">
           <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
         </button>
@@ -202,6 +203,23 @@ const formatMonthTitle = computed(() => {
   return `${monthNames[currentDate.value.getMonth()]} ${currentDate.value.getFullYear()}`
 })
 
+const todayFormatted = computed(() => {
+  return new Date().toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+})
+
+const periodButtonLabel = computed(() => {
+  if (viewMode.value === 'week') {
+    return `Semaine: ${formatDateRange.value}`
+  }
+
+  return formatMonthTitle.value
+})
+
 const monthCells = computed(() => {
   const year  = currentDate.value.getFullYear()
   const month = currentDate.value.getMonth()
@@ -368,6 +386,19 @@ function onDrop(e, day) {
 }
 .cal-title { font-size: 18px; font-weight: 700; color: #1a1f2e; margin: 0 0 2px; }
 .cal-sub   { font-size: 13px; color: #9ca3af; margin: 0; text-transform: capitalize; }
+.today-indicator {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1e3a8a;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  text-transform: capitalize;
+}
 .cal-controls { display: flex; align-items: center; gap: 6px; }
 
 .view-toggle {

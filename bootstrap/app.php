@@ -26,6 +26,9 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withSchedule(function (Schedule $schedule) {
+        // Démarre automatiquement les missions dès que leur heure est atteinte.
+        $schedule->command(\App\Console\Commands\StartDueMissions::class)->everyMinute();
+
         // Rappel J-1 : envoyé chaque soir à 18h00
         $schedule->command(SendMissionReminderAlerts::class)->dailyAt('18:00');
 

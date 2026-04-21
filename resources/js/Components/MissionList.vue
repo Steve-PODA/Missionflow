@@ -23,6 +23,16 @@
           </select>
           <span class="chevron">v</span>
         </div>
+        <div class="select-wrapper">
+          <select v-model="filterPriority">
+            <option value="">Toutes les priorités</option>
+            <option value="urgent">Critique</option>
+            <option value="high">Haute</option>
+            <option value="medium">Standard</option>
+            <option value="low">Faible</option>
+          </select>
+          <span class="chevron">v</span>
+        </div>
       </div>
     </div>
 
@@ -44,10 +54,11 @@
         <p class="company">{{ mission.company }}</p>
         <div class="card-details">
           <div class="detail-row"><span class="detail-icon">&#128336;</span><span>{{ formatTime(mission.start_time) }} · {{ formatDuration(mission.duration) }}</span></div>
+          <div class="detail-row"><span class="detail-icon">📅</span><span>{{ formatDate(mission.date) }}</span></div>
           <div class="detail-row"><span class="detail-icon">&#128205;</span><span>{{ mission.location }}</span></div>
           <div class="detail-row"><span class="detail-icon">🪖</span><span>{{ mission.users?.map(u => u.name).join(', ') || 'Aucun agent affecté' }}</span></div>
         </div>
-        <div class="card-actions" v-if="nextStatus(mission.status) || canCancel(mission.status)">
+        <div class="card-actions" v-if="nextStatus(mission.status) || canCancel(mission.status) || isCompleted(mission.status)">
           <button
             v-if="nextStatus(mission.status)"
             class="action-btn"
@@ -62,6 +73,13 @@
             @click.stop="changeStatus(mission.id, 'cancelled')"
           >
             ✕ Abandonner
+          </button>
+          <button
+            v-if="isCompleted(mission.status)"
+            class="action-btn action-redeploy"
+            @click.stop="redeployMission(mission)"
+          >
+            🔄 Redéployer
           </button>
         </div>
       </div>
@@ -92,14 +110,16 @@ export default {
     return {
       search: '',
       filterStatus: '',
-      filterMember: ''
+      filterMember: '',
+      filterPriority: ''
     }
   },
+  
 
   computed: {
     allMembers() {
       if (!this.missions) return [];
-      
+
       const names = [];
       this.missions.forEach(mission => {
         if (mission.users) {
@@ -108,33 +128,49 @@ export default {
           });
         }
       });
-      
+
       // On retire les doublons pour avoir une liste propre
       return [...new Set(names)].sort();
     },
     filteredMissions() {
       const data = this.missions || [];
-      
+
       return data.filter(m => {
         // 1. Filtre par texte (Titre ou Entreprise)
         const searchTerm = this.search.toLowerCase();
         const matchSearch = !this.search ||
           (m.title && m.title.toLowerCase().includes(searchTerm)) ||
           (m.company && m.company.toLowerCase().includes(searchTerm));
-        
+
         // 2. Filtre par statut
         const matchStatus = !this.filterStatus || m.status === this.filterStatus;
-        
+
         // 3. Filtre par membre (On cherche si le membre sélectionné est dans le tableau users)
-        const matchMember = !this.filterMember || 
+        const matchMember = !this.filterMember ||
           (m.users && m.users.some(u => u.name === this.filterMember));
-        
-        return matchSearch && matchStatus && matchMember;
+
+        // 4. Filtre par priorité
+        const matchPriority = !this.filterPriority || m.priority === this.filterPriority;
+
+        return matchSearch && matchStatus && matchMember && matchPriority;
+      }).sort((a, b) => {
+        // Tri par date (mission la plus proche en premier)
+        const dateA = new Date(a.date || '9999-12-31');
+        const dateB = new Date(b.date || '9999-12-31');
+        return dateA - dateB;
       });
     }
   },
 
   methods: {
+    formatDate(date) {
+      if (!date) return ''
+      return new Date(date + 'T00:00:00').toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
+    },
     formatTime(time) {
       return time ? time.substring(0, 5) : ''
     },
@@ -155,8 +191,45 @@ export default {
     canCancel(status) {
       return status === 'pending' || status === 'in_progress'
     },
+    isCompleted(status) {
+      return status === 'completed' || status === 'cancelled'
+    },
     changeStatus(id, status) {
       router.patch(route('missions.updateStatus', id), { status }, {
+        preserveScroll: true,
+      })
+    },
+    redeployMission(mission) {
+      console.log('Redéploiement demandé pour', mission);
+      const newDate = new Date(mission.date);
+      newDate.setDate(newDate.getDate() + 7);
+      const dateString = newDate.toISOString().split('T')[0];
+
+      // Récupérer les IDs des utilisateurs assignés
+      const selectedTeamIds = mission.users?.map(u => u.id) || [];
+
+      // Corriger le format de l'heure (H:i)
+      let startTime = mission.start_time;
+      if (typeof startTime === 'string' && startTime.length >= 5) {
+        startTime = startTime.substring(0, 5); // "05:30:00" => "05:30"
+      }
+
+      const clonedData = {
+        title: mission.title + ' (Redéploiement)',
+        company: mission.company,
+        briefing: mission.briefing,
+        date: dateString,
+        startTime: startTime,
+        duration: mission.duration,
+        location: mission.location,
+        clientName: mission.client_name,
+        clientPhone: mission.client_phone,
+        clientEmail: mission.client_email,
+        priority: mission.priority,
+        selectedTeam: selectedTeamIds,
+      };
+
+      router.post(route('missions.store'), clonedData, {
         preserveScroll: true,
       })
     },
@@ -357,6 +430,7 @@ export default {
 .action-in_progress { background: #eef2ff; color: #4f6fee; }
 .action-completed   { background: #e8f8ef; color: #22c55e; }
 .action-cancel      { background: #fef2f2; color: #ef4444; }
+.action-redeploy    { background: #e0e7ff; color: #6366f1; }
 
 .empty {
   text-align: center;
