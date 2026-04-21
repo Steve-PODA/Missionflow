@@ -3,18 +3,20 @@
 namespace App\Console\Commands;
 
 use App\Models\Mission;
+use App\Models\WhatsAppLog;
 use App\Services\WhatsAppService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
 class SendMissionDayAlerts extends Command
 {
-    protected $signature   = 'missions:alert-day';
+    protected $signature   = 'missions:alert-day {--trigger=scheduled}';
     protected $description = 'Envoie une alerte WhatsApp le matin du jour de chaque mission';
 
     public function handle(WhatsAppService $whatsapp): int
     {
-        $today = Carbon::today()->toDateString();
+        $today   = Carbon::today()->toDateString();
+        $trigger = $this->option('trigger');
 
         $missions = Mission::with('users')
             ->whereDate('date', $today)
@@ -45,6 +47,16 @@ class SendMissionDayAlerts extends Command
                     time:         $timeFormatted,
                     location:     $mission->location,
                 );
+
+                WhatsAppLog::create([
+                    'user_id'      => $user->id,
+                    'mission_id'   => $mission->id,
+                    'phone_number' => $user->phone_number,
+                    'template'     => 'mission_day_alert',
+                    'status'       => $ok ? 'sent' : 'failed',
+                    'trigger'      => $trigger,
+                    'error'        => $ok ? null : 'API error — voir logs Laravel',
+                ]);
 
                 if ($ok) {
                     $this->info("  [OK] Alerte Jour J envoyée à {$user->name} pour « {$mission->title} ».");
