@@ -162,6 +162,15 @@ class MissionController extends Controller
         return back()->with('success', "{$mission->title} reprogrammée à {$request->start_time}.");
     }
 
+    public function destroy(Mission $mission)
+    {
+        $title = $mission->title;
+        $mission->users()->detach();
+        $mission->delete();
+
+        return Redirect::back()->with('success', "« {$title} » a été supprimée.");
+    }
+
     public function updateStatus(Request $request, Mission $mission)
     {
         $request->validate([

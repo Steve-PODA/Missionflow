@@ -149,28 +149,58 @@
         <span v-if="errors.location" class="error-msg">{{ errors.location[0] }}</span>
       </div>
 
+      <!-- CHEF DE MISSION (si plusieurs agents sélectionnés) -->
+      <div v-if="form.selectedTeam.length > 1" class="form-group">
+        <label>Chef de mission <span class="required">*</span></label>
+        <p class="field-hint">Ses coordonnées seront utilisées comme contact principal de l'opération.</p>
+        <div class="leader-select">
+          <div
+            v-for="member in selectedMembers"
+            :key="member.id"
+            class="leader-option"
+            :class="{ active: leaderId === member.id }"
+            @click="selectLeader(member.id)"
+          >
+            <div class="member-avatar" :style="{ background: getUserColor(member.name) }">{{ getInitials(member.name) }}</div>
+            <div class="leader-info">
+              <span class="member-name">{{ member.name }}</span>
+              <span class="member-role">{{ member.role || '—' }}</span>
+            </div>
+            <div class="radio-circle" :class="{ checked: leaderId === member.id }">
+              <div v-if="leaderId === member.id" class="radio-dot"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Officier de liaison + Ligne sécurisée -->
       <div class="form-row">
         <div class="form-group">
           <label>Officier de liaison <span class="required">*</span></label>
-          <input
-            type="text"
-            v-model="form.clientName"
-            placeholder="Grade et nom"
-            class="form-input"
-            :class="{ 'input-error': errors.clientName }"
-          />
+          <div class="input-with-badge">
+            <input
+              type="text"
+              v-model="form.clientName"
+              placeholder="Grade et nom"
+              class="form-input"
+              :class="{ 'input-error': errors.clientName }"
+            />
+            <span v-if="autoFilled" class="autofill-badge">Auto</span>
+          </div>
           <span v-if="errors.clientName" class="error-msg">{{ errors.clientName[0] }}</span>
         </div>
         <div class="form-group">
           <label>Ligne sécurisée <span class="required">*</span></label>
-          <input
-            type="tel"
-            v-model="form.clientPhone"
-            placeholder="Numéro de contact"
-            class="form-input"
-            :class="{ 'input-error': errors.clientPhone }"
-          />
+          <div class="input-with-badge">
+            <input
+              type="tel"
+              v-model="form.clientPhone"
+              placeholder="Numéro de contact"
+              class="form-input"
+              :class="{ 'input-error': errors.clientPhone }"
+            />
+            <span v-if="autoFilled" class="autofill-badge">Auto</span>
+          </div>
           <span v-if="errors.clientPhone" class="error-msg">{{ errors.clientPhone[0] }}</span>
         </div>
       </div>
@@ -178,13 +208,16 @@
       <!-- Contact chiffré (email) -->
       <div class="form-group">
         <label>Contact chiffré (email)</label>
-        <input
-          type="email"
-          v-model="form.clientEmail"
-          placeholder="adresse@domaine.mil"
-          class="form-input"
-          :class="{ 'input-error': errors.clientEmail }"
-        />
+        <div class="input-with-badge">
+          <input
+            type="email"
+            v-model="form.clientEmail"
+            placeholder="adresse@domaine.mil"
+            class="form-input"
+            :class="{ 'input-error': errors.clientEmail }"
+          />
+          <span v-if="autoFilled" class="autofill-badge">Auto</span>
+        </div>
         <span v-if="errors.clientEmail" class="error-msg">{{ errors.clientEmail[0] }}</span>
       </div>
 
@@ -210,21 +243,23 @@ export default {
 
   data() {
     return {
-      isSaving: false,
-      errors: {},
+      isSaving:  false,
+      errors:    {},
+      leaderId:  null,
+      autoFilled: false,
       form: {
-        title: '',
-        briefing: '',
-        company: '',
-        date: '',
-        startTime: '',
-        duration: '2',
-        priority: 'medium',
-        location: '',
+        title:        '',
+        briefing:     '',
+        company:      '',
+        date:         '',
+        startTime:    '',
+        duration:     '2',
+        priority:     'medium',
+        location:     '',
         selectedTeam: [],
-        clientName: '',
-        clientEmail: '',
-        clientPhone: '',
+        clientName:   '',
+        clientEmail:  '',
+        clientPhone:  '',
       },
       priorities: [
         { value: 'low',    label: 'Niveau 4 – Faible'  },
@@ -233,6 +268,24 @@ export default {
         { value: 'urgent', label: 'CRITIQUE'            },
       ],
     }
+  },
+
+  watch: {
+    'form.selectedTeam'(newVal) {
+      if (newVal.length === 1) {
+        this.leaderId = newVal[0]
+        this.fillFromLeader(newVal[0])
+      } else if (newVal.length === 0) {
+        this.leaderId   = null
+        this.autoFilled = false
+      } else {
+        // plusieurs membres : si le leader actuel n'est plus dans la sélection, le retirer
+        if (this.leaderId && !newVal.includes(this.leaderId)) {
+          this.leaderId   = null
+          this.autoFilled = false
+        }
+      }
+    },
   },
 
   computed: {
@@ -248,7 +301,13 @@ export default {
         return m && (m.computed_status === 'on_leave' || m.computed_status === 'unavailable')
       })
     },
+    selectedMembers() {
+      return this.form.selectedTeam
+        .map(id => this.teamMembers.find(m => m.id === id))
+        .filter(Boolean)
+    },
     isValid() {
+      const leaderOk = this.form.selectedTeam.length < 2 || this.leaderId !== null
       return (
         this.form.title.trim() &&
         this.form.company.trim() &&
@@ -256,6 +315,7 @@ export default {
         this.form.startTime &&
         this.form.location.trim() &&
         this.form.selectedTeam.length > 0 &&
+        leaderOk &&
         this.form.clientName.trim() &&
         this.form.clientPhone.trim()
       )
@@ -288,6 +348,18 @@ export default {
       const i = this.form.selectedTeam.indexOf(id)
       if (i > -1) this.form.selectedTeam.splice(i, 1)
       else        this.form.selectedTeam.push(id)
+    },
+    selectLeader(id) {
+      this.leaderId = id
+      this.fillFromLeader(id)
+    },
+    fillFromLeader(id) {
+      const member = this.teamMembers.find(m => m.id === id)
+      if (!member) return
+      this.form.clientName  = member.name        || ''
+      this.form.clientPhone = member.phone_number || ''
+      this.form.clientEmail = member.email        || ''
+      this.autoFilled       = true
     },
 
     createMission() {
@@ -539,6 +611,35 @@ export default {
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   color: white; font-size: 12px; font-weight: 700;
+}
+
+/* CHEF DE MISSION */
+.field-hint { font-size: 11px; color: #9ca3af; margin-bottom: 8px; display: block; }
+.leader-select { display: flex; flex-direction: column; gap: 6px; }
+.leader-option {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: 10px;
+  border: 2px solid #e5e7eb; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.leader-option:hover { border-color: #4f6fee; background: #f8f9ff; }
+.leader-option.active { border-color: #4f6fee; background: rgba(79,111,238,0.07); }
+.leader-info { flex: 1; display: flex; flex-direction: column; }
+.radio-circle {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid #d1d5db; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: border-color 0.15s;
+}
+.leader-option.active .radio-circle { border-color: #4f6fee; }
+.radio-dot { width: 8px; height: 8px; border-radius: 50%; background: #4f6fee; }
+
+/* AUTOFILL BADGE */
+.input-with-badge { position: relative; }
+.input-with-badge .form-input { padding-right: 52px; }
+.autofill-badge {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  font-size: 10px; font-weight: 700; background: #eef2ff; color: #4f6fee;
+  padding: 2px 7px; border-radius: 10px; pointer-events: none;
 }
 
 /* ACTIONS */

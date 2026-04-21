@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Mission;
 use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class HomeController extends Controller
@@ -11,7 +12,7 @@ class HomeController extends Controller
     public function index()
     {
         /** @var \App\Models\User $authUser */
-        $authUser      = auth()->user();
+        $authUser      = Auth::user();
         $isTechnicien  = $authUser->hasRole('technicien');
 
         // Équipe : tous les membres (utile pour tout le monde)

@@ -10,31 +10,32 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        User::create([
-            'name'     => 'Général PIT👺🔥',
+        $admin = User::create([
+            'name'     => 'Admin',
             'email'    => 'admin@exemple.com',
             'password' => Hash::make('password'),
-            'role'     => 'Commandant en chef',
-            'avatar'   => 'https://ui-avatars.com/api/?name=General+PIT👺🔥&background=1e1f2e&color=fff',
+            'role'     => 'Administrateur',
+            'avatar'   => null,
         ]);
+        $admin->assignRole('admin');
 
         $personnel = [
-            ['name' => 'Colonel Leclerc',    'email' => 'leclerc@exemple.com',    'role' => 'Officier de renseignement'],
-            ['name' => 'Capitaine Renard',   'email' => 'renard@exemple.com',     'role' => 'Chef d\'unité'],
-            ['name' => 'Lieutenant Dubois',  'email' => 'dubois@exemple.com',     'role' => 'Agent de terrain'],
-            ['name' => 'Sergent Martin',     'email' => 'martin@exemple.com',     'role' => 'Agent de terrain'],
-            ['name' => 'Caporal Petit',      'email' => 'petit@exemple.com',      'role' => 'Agent de terrain'],
-
+            ['name' => 'Colonel Leclerc',   'email' => 'leclerc@exemple.com',  'role' => 'Officier de renseignement', 'spatie' => 'manager'],
+            ['name' => 'Capitaine Renard',  'email' => 'renard@exemple.com',   'role' => 'Chef d\'unité',             'spatie' => 'manager'],
+            ['name' => 'Lieutenant Dubois', 'email' => 'dubois@exemple.com',   'role' => 'Agent de terrain',          'spatie' => 'technicien'],
+            ['name' => 'Sergent Martin',    'email' => 'martin@exemple.com',   'role' => 'Agent de terrain',          'spatie' => 'technicien'],
+            ['name' => 'Caporal Petit',     'email' => 'petit@exemple.com',    'role' => 'Agent de terrain',          'spatie' => 'technicien'],
         ];
 
         foreach ($personnel as $p) {
-            User::create([
+            $user = User::create([
                 'name'     => $p['name'],
                 'email'    => $p['email'],
                 'password' => Hash::make('password'),
                 'role'     => $p['role'],
-                'avatar'   => 'https://ui-avatars.com/api/?name=' . urlencode($p['name']) . '&background=4f6fee&color=fff',
+                'avatar'   => null,
             ]);
+            $user->assignRole($p['spatie']);
         }
     }
 }
