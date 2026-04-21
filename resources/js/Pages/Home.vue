@@ -115,30 +115,20 @@
         <WeeklyCalendar :events="missions" @open-event="detailMission = $event" />
       </div>
 
-      <!-- LISTE MISSIONS -->
-      <div class="list-section">
-        <MissionList :missions="missions" :all-team-members="team" @detail="detailMission = $event" @edit="openEditor" />
-        <MissionDetail v-if="detailMission && !editingMission" :mission="detailMission" @close="detailMission = null" @edit="openEditor" />
-        <MissionEditor v-if="editingMission" :mission="editingMission" :team-members="team" @close="editingMission = null" />
-      </div>
-
     </div>
   </AppLayout>
 </template>
 
 <script>
-import { router, usePage } from '@inertiajs/vue3'
+import { router } from '@inertiajs/vue3'
 import AppLayout      from '@/Layouts/AppLayout.vue'
 import WeeklyCalendar from '@/Components/WeeklyCalendar.vue'
-import MissionList    from '@/Components/MissionList.vue'
 import MissionCreator from '@/Components/MissionCreator.vue'
-import MissionEditor  from '@/Components/MissionEditor.vue'
-import MissionDetail  from '@/Components/MissionDetail.vue'
 
 export default {
   name: 'Home',
 
-  components: { AppLayout, WeeklyCalendar, MissionList, MissionCreator, MissionEditor, MissionDetail },
+  components: { AppLayout, WeeklyCalendar, MissionCreator },
 
   props: {
     missions:    { type: Array,  default: () => [] },
