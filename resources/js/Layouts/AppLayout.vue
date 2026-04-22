@@ -46,7 +46,7 @@
       <div class="sidebar-footer">
         <div class="user-info">
           <div class="user-avatar" @click="toggleAvatarMenu" title="Modifier la photo">
-            <img v-if="$page.props.auth.user.avatar" :src="'/storage/' + $page.props.auth.user.avatar" :alt="$page.props.auth.user.name" class="avatar-img" />
+            <img v-if="currentAvatarSrc" :src="currentAvatarSrc" :alt="$page.props.auth.user.name" class="avatar-img" />
             <span v-else>{{ initials }}</span>
             <div class="avatar-overlay">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -115,6 +115,24 @@
         {{ toast }}
       </div>
     </Transition>
+
+    <Transition name="avatar-preview">
+      <div v-if="avatarPreviewUrl" class="avatar-preview-backdrop" @click="cancelAvatarUpload">
+        <div class="avatar-preview-modal" @click.stop>
+          <h3 class="avatar-preview-title">Aperçu de la photo</h3>
+          <img :src="avatarPreviewUrl" alt="Aperçu de la nouvelle photo de profil" class="avatar-preview-image" />
+          <p class="avatar-preview-hint">Vérifiez l'image avant de la publier.</p>
+          <div class="avatar-preview-actions">
+            <button class="avatar-preview-btn avatar-preview-btn--ghost" type="button" @click="cancelAvatarUpload" :disabled="avatarForm.processing">
+              Annuler
+            </button>
+            <button class="avatar-preview-btn avatar-preview-btn--primary" type="button" @click="confirmAvatarUpload" :disabled="avatarForm.processing">
+              {{ avatarForm.processing ? 'Envoi...' : 'Utiliser cette photo' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -127,6 +145,8 @@ const page           = usePage()
 const avatarInput    = ref(null)
 const showAvatarMenu = ref(false)
 const avatarForm     = useForm({ avatar: null })
+const avatarPreviewFile = ref(null)
+const avatarPreviewUrl  = ref(null)
 
 function toggleAvatarMenu() { showAvatarMenu.value = !showAvatarMenu.value }
 
@@ -137,26 +157,59 @@ function closeAvatarMenu(e) {
 }
 
 onMounted(() => document.addEventListener('click', closeAvatarMenu))
-onUnmounted(() => document.removeEventListener('click', closeAvatarMenu))
+onUnmounted(() => {
+  document.removeEventListener('click', closeAvatarMenu)
+  if (avatarPreviewUrl.value) {
+    URL.revokeObjectURL(avatarPreviewUrl.value)
+  }
+})
 
 function triggerAvatarInput() {
   showAvatarMenu.value = false
   avatarInput.value.click()
 }
 
+function resetAvatarPreview() {
+  if (avatarPreviewUrl.value) {
+    URL.revokeObjectURL(avatarPreviewUrl.value)
+  }
+  avatarPreviewUrl.value = null
+  avatarPreviewFile.value = null
+  if (avatarInput.value) {
+    avatarInput.value.value = ''
+  }
+}
+
 function uploadAvatar(e) {
-  const file = e.target.files[0]
+  const file = e.target.files?.[0]
   if (!file) return
-  avatarForm.avatar = file
+
+  if (avatarPreviewUrl.value) {
+    URL.revokeObjectURL(avatarPreviewUrl.value)
+  }
+
+  avatarPreviewFile.value = file
+  avatarPreviewUrl.value = URL.createObjectURL(file)
+}
+
+function confirmAvatarUpload() {
+  if (!avatarPreviewFile.value) return
+
+  avatarForm.avatar = avatarPreviewFile.value
   avatarForm.post(route('profile.avatar'), {
     forceFormData: true,
-    onSuccess: () => { avatarInput.value.value = '' },
-    onError:   () => { avatarInput.value.value = '' },
+    onSuccess: () => { resetAvatarPreview() },
+    onError:   () => { resetAvatarPreview() },
   })
+}
+
+function cancelAvatarUpload() {
+  resetAvatarPreview()
 }
 
 function deleteAvatar() {
   showAvatarMenu.value = false
+  resetAvatarPreview()
   router.delete(route('profile.avatar.delete'))
 }
 
@@ -180,6 +233,18 @@ watch(
 const initials = computed(() => {
   const name = page.props.auth?.user?.name || ''
   return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+})
+
+const currentAvatarSrc = computed(() => {
+  if (avatarPreviewUrl.value) {
+    return avatarPreviewUrl.value
+  }
+
+  if (page.props.auth?.user?.avatar) {
+    return '/storage/' + page.props.auth.user.avatar
+  }
+
+  return null
 })
 
 const pageTitle = computed(() => {
@@ -418,6 +483,110 @@ const currentDate = computed(() => {
 
 .toast-enter-active, .toast-leave-active { transition: all 0.3s ease; }
 .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(12px); }
+
+.avatar-preview-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 10000;
+}
+
+.avatar-preview-modal {
+  width: min(420px, 100%);
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(17, 24, 39, 0.25);
+  padding: 18px;
+}
+
+.avatar-preview-title {
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.avatar-preview-image {
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.avatar-preview-hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.avatar-preview-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.avatar-preview-btn {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.avatar-preview-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.avatar-preview-btn--ghost {
+  background: #fff;
+  color: #374151;
+  border-color: #d1d5db;
+}
+
+.avatar-preview-btn--ghost:hover:not(:disabled) {
+  background: #f9fafb;
+}
+
+.avatar-preview-btn--primary {
+  background: #2A1F5C;
+  color: #EDE7F6;
+  border-color: #2A1F5C;
+}
+
+.avatar-preview-btn--primary:hover:not(:disabled) {
+  background: #3b2a78;
+}
+
+.avatar-preview-enter-active,
+.avatar-preview-leave-active {
+  transition: opacity 0.18s ease;
+}
+
+.avatar-preview-enter-active .avatar-preview-modal,
+.avatar-preview-leave-active .avatar-preview-modal {
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+.avatar-preview-enter-from,
+.avatar-preview-leave-to {
+  opacity: 0;
+}
+
+.avatar-preview-enter-from .avatar-preview-modal,
+.avatar-preview-leave-to .avatar-preview-modal {
+  transform: translateY(8px) scale(0.98);
+  opacity: 0;
+}
 
 /* ─── RESPONSIVE ────────────────────────────── */
 @media (max-width: 768px) {
