@@ -114,12 +114,7 @@
         <WeeklyCalendar :events="missions" @open-event="detailMission = $event" />
       </div>
 
-      <!-- LISTE MISSIONS -->
-      <div class="list-section">
-        <MissionList :missions="missions" :all-team-members="team" @detail="detailMission = $event" @edit="openEditor" />
-        <MissionDetail v-if="detailMission" :mission="detailMission" @close="detailMission = null" @edit="openEditor" />
-      </div>
-
+      <MissionDetail v-if="detailMission" :mission="detailMission" @close="detailMission = null" @edit="openEditor" />
       <MissionCreator v-if="creatorOpen" :team-members="team" @close="creatorOpen = false" />
 
 
@@ -130,7 +125,6 @@
 <script>
 import AppLayout      from '@/Layouts/AppLayout.vue'
 import WeeklyCalendar from '@/Components/WeeklyCalendar.vue'
-import MissionList    from '@/Components/MissionList.vue'
 import MissionDetail  from '@/Components/MissionDetail.vue'
 import MissionCreator from '@/Components/MissionCreator.vue'
 import { router } from '@inertiajs/vue3'
@@ -138,7 +132,7 @@ import { router } from '@inertiajs/vue3'
 export default {
   name: 'Home',
 
-  components: { AppLayout, WeeklyCalendar, MissionList, MissionDetail, MissionCreator },
+  components: { AppLayout, WeeklyCalendar, MissionDetail, MissionCreator },
 
   props: {
     missions:    { type: Array,  default: () => [] },
@@ -521,7 +515,6 @@ export default {
 
 /* SECTIONS */
 .calendar-section { margin-bottom: 28px; }
-.list-section     { margin-bottom: 32px; }
 
 /* RESPONSIVE */
 @media (max-width: 1024px) {
