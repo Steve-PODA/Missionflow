@@ -38,6 +38,7 @@ return [
     'whatsapp' => [
         'token'           => env('WHATSAPP_TOKEN'),
         'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),
+        'ssl_verify'      => env('WHATSAPP_SSL_VERIFY', true),
     ],
 
 ];

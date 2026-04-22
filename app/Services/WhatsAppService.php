@@ -96,7 +96,7 @@ class WhatsAppService
      */
     public function sendMissionReminder(string $to, string $agentName, string $missionTitle, string $date, string $time, string $location): bool
     {
-        return $this->sendTemplate($to, 'mission_reminder', [
+        return $this->sendTemplate($to, 'mission_reminder_v1', [
             [
                 'type'       => 'body',
                 'parameters' => [
