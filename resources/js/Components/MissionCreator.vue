@@ -181,6 +181,7 @@
             <input
               type="text"
               v-model="form.clientName"
+              @input="autoFilled = false"
               placeholder="Grade et nom"
               class="form-input"
               :class="{ 'input-error': errors.clientName }"
@@ -195,6 +196,7 @@
             <input
               type="tel"
               v-model="form.clientPhone"
+              @input="autoFilled = false"
               placeholder="Numéro de contact"
               class="form-input"
               :class="{ 'input-error': errors.clientPhone }"
@@ -212,6 +214,7 @@
           <input
             type="email"
             v-model="form.clientEmail"
+            @input="autoFilled = false"
             placeholder="adresse@domaine.mil"
             class="form-input"
             :class="{ 'input-error': errors.clientEmail }"

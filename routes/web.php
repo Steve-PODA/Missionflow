@@ -18,8 +18,16 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
+// Routes 2FA (auth requis, mais pas encore 2fa vérifié)
+Route::middleware(['auth'])->group(function () {
+    Route::get('/2fa/verify',  [\App\Http\Controllers\Auth\TwoFactorController::class, 'showVerify'])->name('2fa.verify');
+    Route::post('/2fa/verify', [\App\Http\Controllers\Auth\TwoFactorController::class, 'verify'])->name('2fa.verify.submit');
+    Route::get('/2fa/setup',   [\App\Http\Controllers\Auth\TwoFactorController::class, 'showSetup'])->name('2fa.setup');
+    Route::post('/2fa/setup',  [\App\Http\Controllers\Auth\TwoFactorController::class, 'confirmSetup'])->name('2fa.setup.confirm');
+});
+
 // TOUTES les routes ci-dessous demandent d'être connecté
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', '2fa'])->group(function () {
 
     // Dashboard (accessible à tous les rôles)
     Route::get('/home', [HomeController::class, 'index'])->name('home');
@@ -30,9 +38,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('missions.index');
 
     // Missions — écriture : admin, manager uniquement
+    Route::get('/missions/create', [MissionController::class, 'create'])
+        ->middleware('permission:create missions')
+        ->name('missions.create');
+
     Route::post('/missions', [MissionController::class, 'store'])
         ->middleware('permission:create missions')
         ->name('missions.store');
+
+    Route::get('/missions/{mission}/edit', [MissionController::class, 'edit'])
+        ->middleware('permission:edit missions')
+        ->name('missions.edit');
 
     Route::patch('/missions/{mission}/status', [MissionController::class, 'updateStatus'])
         ->middleware('permission:update mission status')
@@ -61,7 +77,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('personnel.availability');
 
     // Recherche globale
-    Route::get('/search', SearchController::class)->name('search');
+    Route::get('/search', SearchController::class)
+        ->middleware('permission:view missions')
+        ->name('search');
 
     // Rapports — admin et manager uniquement
     Route::get('/reports', [ReportController::class, 'index'])

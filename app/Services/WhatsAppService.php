@@ -28,7 +28,7 @@ class WhatsAppService
         $to = $this->formatPhoneNumber($to);
 
         $response = Http::withToken($this->token)
-            ->withOptions(['verify' => app()->isProduction()])
+            ->withOptions(['verify' => true])
             ->post($this->apiUrl, [
                 'messaging_product' => 'whatsapp',
                 'to'                => $to,
@@ -75,7 +75,7 @@ class WhatsAppService
         }
 
         $response = Http::withToken($this->token)
-            ->withOptions(['verify' => app()->isProduction()])
+            ->withOptions(['verify' => true])
             ->post($this->apiUrl, $payload);
 
         if ($response->failed()) {

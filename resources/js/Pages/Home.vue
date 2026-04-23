@@ -8,7 +8,7 @@
           <h1 class="page-title">Centre Opérationnel</h1>
           <p class="page-sub">Agent {{ $page.props.auth.user.name }} — {{ $page.props.auth.user.role || 'Personnel' }}</p>
         </div>
-        <button v-if="$page.props.auth.can.create_missions" class="btn-primary" @click="isCreating = true">
+        <button v-if="$page.props.auth.can.create_missions" class="btn-primary" @click="creatorOpen = true">
           + Déployer une opération
         </button>
       </div>
@@ -41,7 +41,6 @@
         </div>
       </div>
 
-      <MissionCreator v-if="isCreating" :team-members="team" @close="isCreating = false" />
 
       <!-- STATS -->
       <section class="stats">
@@ -115,30 +114,25 @@
         <WeeklyCalendar :events="missions" @open-event="detailMission = $event" />
       </div>
 
-      <!-- LISTE MISSIONS -->
-      <div class="list-section">
-        <MissionList :missions="missions" :all-team-members="team" @detail="detailMission = $event" @edit="openEditor" />
-        <MissionDetail v-if="detailMission && !editingMission" :mission="detailMission" @close="detailMission = null" @edit="openEditor" />
-        <MissionEditor v-if="editingMission" :mission="editingMission" :team-members="team" @close="editingMission = null" />
-      </div>
+      <MissionDetail v-if="detailMission" :mission="detailMission" @close="detailMission = null" @edit="openEditor" />
+      <MissionCreator v-if="creatorOpen" :team-members="team" @close="creatorOpen = false" />
+
 
     </div>
   </AppLayout>
 </template>
 
 <script>
-import { router, usePage } from '@inertiajs/vue3'
 import AppLayout      from '@/Layouts/AppLayout.vue'
 import WeeklyCalendar from '@/Components/WeeklyCalendar.vue'
-import MissionList    from '@/Components/MissionList.vue'
-import MissionCreator from '@/Components/MissionCreator.vue'
-import MissionEditor  from '@/Components/MissionEditor.vue'
 import MissionDetail  from '@/Components/MissionDetail.vue'
+import MissionCreator from '@/Components/MissionCreator.vue'
+import { router } from '@inertiajs/vue3'
 
 export default {
   name: 'Home',
 
-  components: { AppLayout, WeeklyCalendar, MissionList, MissionCreator, MissionEditor, MissionDetail },
+  components: { AppLayout, WeeklyCalendar, MissionDetail, MissionCreator },
 
   props: {
     missions:    { type: Array,  default: () => [] },
@@ -150,9 +144,8 @@ export default {
 
   data() {
     return {
-      isCreating:     false,
       detailMission:  null,
-      editingMission: null,
+      creatorOpen:    false,
       overdueOpen:    true,
       now:            new Date(),
       countdownTimer: null,
@@ -246,8 +239,7 @@ export default {
       router.patch(route('missions.updateStatus', id), { status: 'cancelled' }, { preserveScroll: true })
     },
     openEditor(mission) {
-      this.detailMission  = null
-      this.editingMission = mission
+      router.visit(route('missions.edit', mission.id))
     },
     getInitials(name) {
       if (!name) return '??'
@@ -523,7 +515,6 @@ export default {
 
 /* SECTIONS */
 .calendar-section { margin-bottom: 28px; }
-.list-section     { margin-bottom: 32px; }
 
 /* RESPONSIVE */
 @media (max-width: 1024px) {

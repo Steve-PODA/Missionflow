@@ -12,9 +12,6 @@ use Inertia\Inertia;
 
 class MissionController extends Controller
 {
-    /**
-     * Affiche la liste des missions
-     */
     public function index()
     {
         $now = Carbon::now();
@@ -41,18 +38,21 @@ class MissionController extends Controller
         }
 
         $missions = $missionsQuery->get();
-
-        $team = User::with(['missions' => fn($q) => $q->where('status', 'in_progress')
-                ->select('missions.id', 'missions.title')])
-            ->get()
-            ->map(fn($user) => array_merge($user->toArray(), [
-                'active_mission'  => $user->missions->first(),
-                'computed_status' => $user->missions->isNotEmpty() ? 'deployed' : $user->availability,
-            ]));
+        $team     = $this->getTeamMembers();
 
         return Inertia::render('Missions/Index', [
             'missions' => $missions,
             'team'     => $team,
+        ]);
+    }
+
+    /**
+     * Affiche le formulaire de création de mission
+     */
+    public function create()
+    {
+        return Inertia::render('Missions/MissionCreator', [
+            'team' => $this->getTeamMembers(),
         ]);
     }
 
@@ -97,8 +97,21 @@ class MissionController extends Controller
         // La méthode sync() prend un tableau d'IDs et s'occupe de tout
         $mission->users()->sync($validated['selectedTeam']);
 
-        // 4. Retourner vers le Dashboard avec un message
-        return Redirect::back()->with('success', 'Opération déployée avec succès.');
+        // 4. Retourner vers l'index avec un message
+        return Redirect::route('missions.index')->with('success', 'Opération déployée avec succès.');
+    }
+
+    /**
+     * Affiche le formulaire d'édition de mission
+     */
+    public function edit(Mission $mission)
+    {
+        $mission->load('users');
+
+        return Inertia::render('Missions/MissionEditor', [
+            'mission' => $mission,
+            'team'    => $this->getTeamMembers(),
+        ]);
     }
 
     public function update(Request $request, Mission $mission)
@@ -135,7 +148,7 @@ class MissionController extends Controller
 
         $mission->users()->sync($validated['selectedTeam']);
 
-        return Redirect::back()->with('success', 'Opération mise à jour.');
+        return Redirect::route('missions.index')->with('success', 'Opération mise à jour.');
     }
 
     public function reschedule(Request $request, Mission $mission)
@@ -177,6 +190,16 @@ class MissionController extends Controller
             'status' => 'required|in:pending,in_progress,completed,cancelled',
         ]);
 
+        /** @var \App\Models\User $authUser */
+        $authUser = Auth::user();
+        if (!$authUser->can('edit missions')) {
+            abort_if(
+                !$mission->users()->where('users.id', $authUser->id)->exists(),
+                403,
+                'Vous n\'êtes pas affecté à cette opération.'
+            );
+        }
+
         $oldStatus = $mission->status;
         $mission->update(['status' => $request->status]);
 
@@ -188,5 +211,24 @@ class MissionController extends Controller
             ->log("Statut de « {$mission->title} » changé : {$statusLabels[$oldStatus]} → {$statusLabels[$request->status]}");
 
         return back()->with('success', 'Statut de l\'opération mis à jour.');
+    }
+
+    private function getTeamMembers()
+    {
+        return User::with(['missions' => fn($q) => $q->where('status', 'in_progress')
+                ->select('missions.id', 'missions.title')])
+            ->get()
+            ->map(fn($user) => [
+                'id'              => $user->id,
+                'name'            => $user->name,
+                'role'            => $user->role,
+                'avatar'          => $user->avatar,
+                'availability'    => $user->availability,
+                'phone_number'    => $user->phone_number,
+                'email'           => $user->email,
+                'active_mission'  => $user->missions->first()?->only(['id', 'title']),
+                'computed_status' => $user->missions->isNotEmpty() ? 'deployed' : $user->availability,
+                'missions_count'  => $user->missions->count(),
+            ]);
     }
 }

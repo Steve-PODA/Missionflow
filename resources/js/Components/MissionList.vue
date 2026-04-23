@@ -75,7 +75,7 @@
             ✕ Abandonner
           </button>
           <button
-            v-if="isCompleted(mission.status)"
+            v-if="isCompleted(mission.status) && $page.props.auth.can.create_missions"
             class="action-btn action-redeploy"
             @click.stop="redeployMission(mission)"
           >
