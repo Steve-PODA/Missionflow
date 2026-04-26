@@ -29,9 +29,9 @@ class DatabaseSeeder extends Seeder
         $personnel = [
             ['name' => 'Colonel Leclerc',   'email' => 'leclerc@exemple.com',   'role' => 'Officier de renseignement', 'spatie_role' => 'manager'],
             ['name' => 'Capitaine Renard',  'email' => 'renard@exemple.com',    'role' => 'Chef d\'unité',            'spatie_role' => 'manager'],
-            ['name' => 'Lieutenant Dubois', 'email' => 'dubois@exemple.com',    'role' => 'Agent de terrain',         'spatie_role' => 'technicien'],
-            ['name' => 'Sergent Martin',    'email' => 'martin@exemple.com',    'role' => 'Agent de terrain',         'spatie_role' => 'technicien'],
-            ['name' => 'Caporal Petit',     'email' => 'petit@exemple.com',     'role' => 'Agent de terrain',         'spatie_role' => 'technicien'],
+            ['name' => 'Lieutenant Dubois', 'email' => 'dubois@exemple.com',    'role' => 'Agent de terrain',         'spatie_role' => 'agent'],
+            ['name' => 'Sergent Martin',    'email' => 'martin@exemple.com',    'role' => 'Agent de terrain',         'spatie_role' => 'agent'],
+            ['name' => 'Caporal Petit',     'email' => 'petit@exemple.com',     'role' => 'Agent de terrain',         'spatie_role' => 'agent'],
         ];
 
         $agents = collect();

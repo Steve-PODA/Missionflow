@@ -31,6 +31,7 @@ class TwoFactorController extends Controller
         }
 
         $request->session()->put('2fa_verified', true);
+        $request->session()->regenerate();
 
         return redirect()->intended(route('home'));
     }
@@ -43,7 +44,8 @@ class TwoFactorController extends Controller
 
         if (!$user->google2fa_secret) {
             $secret = $google2fa->generateSecretKey();
-            $user->update(['google2fa_secret' => $secret]);
+            $user->google2fa_secret = $secret;
+            $user->save();
         }
 
         $qrCodeUrl = $google2fa->getQRCodeUrl(
@@ -72,6 +74,7 @@ class TwoFactorController extends Controller
         }
 
         $request->session()->put('2fa_verified', true);
+        $request->session()->regenerate();
 
         return redirect()->route('home')->with('success', 'Double authentification activée avec succès.');
     }

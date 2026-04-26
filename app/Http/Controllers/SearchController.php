@@ -18,7 +18,7 @@ class SearchController extends Controller
 
         /** @var \App\Models\User $authUser */
         $authUser     = auth()->user();
-        $isTechnicien = $authUser->hasRole('technicien');
+        $isTechnicien = $authUser->hasRole('agent');
 
         $missionsQuery = Mission::with('users')
             ->where(fn($query) => $query

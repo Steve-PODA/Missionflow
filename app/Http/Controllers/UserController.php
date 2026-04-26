@@ -25,7 +25,7 @@ class UserController extends Controller
                 'phone_number'   => $user->phone_number,
                 'role'           => $user->role,
                 'availability'   => $user->availability,
-                'spatie_role'    => $user->roles->first()?->name ?? 'technicien',
+                'spatie_role'    => $user->roles->first()?->name ?? 'agent',
                 'missions_count' => $user->missions_count,
                 'is_blocked'     => (bool) $user->is_blocked,
             ]);
@@ -100,7 +100,8 @@ class UserController extends Controller
             return Redirect::back()->with('error', 'Vous ne pouvez pas bloquer votre propre compte.');
         }
 
-        $user->update(['is_blocked' => ! $user->is_blocked]);
+        $user->is_blocked = ! $user->is_blocked;
+        $user->save();
 
         $action = $user->is_blocked ? 'bloqué' : 'débloqué';
 

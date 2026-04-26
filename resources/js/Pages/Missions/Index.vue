@@ -12,7 +12,7 @@
         </button>
       </div>
 
-      <div v-if="!$page.props.auth.can.create_missions" class="technicien-banner">
+      <div v-if="!$page.props.auth.can.create_missions" class="agent-banner">
         🪖 Vue personnelle — vous ne voyez que les opérations auxquelles vous êtes affecté.
       </div>
 
@@ -82,7 +82,7 @@ export default {
   transition: background 0.15s;
 }
 .btn-primary:hover { background: #3d5cdb; }
-.technicien-banner {
+.agent-banner {
   background: #eef2ff;
   border: 1px solid #c7d2fe;
   border-radius: 10px;

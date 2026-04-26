@@ -256,7 +256,7 @@ export default {
         phone_number: '',
         password:     '',
         role:         '',
-        spatie_role:  'technicien',
+        spatie_role:  'agent',
         availability: 'available',
       },
     }
@@ -290,7 +290,7 @@ export default {
     openCreate() {
       this.editingUser = null
       this.errors      = {}
-      this.form        = { name: '', email: '', phone_number: '', password: '', role: '', spatie_role: 'technicien', availability: 'available' }
+      this.form        = { name: '', email: '', phone_number: '', password: '', role: '', spatie_role: 'agent', availability: 'available' }
       this.showModal   = true
     },
     openEdit(user) {
@@ -356,13 +356,13 @@ export default {
       for (let i = 0; i < (name || '').length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
       return `hsl(${Math.abs(hash) % 360}, 50%, 38%)`
     },
-    roleLabel(r)  { return { admin: 'Administrateur', manager: 'Manager', technicien: 'Technicien' }[r] ?? r },
-    roleIcon(r)   { return { admin: '🛡️', manager: '⚙️', technicien: '🔧' }[r] ?? '👤' },
+    roleLabel(r)  { return { admin: 'Administrateur', manager: 'Manager', agent: 'Technicien' }[r] ?? r },
+    roleIcon(r)   { return { admin: '🛡️', manager: '⚙️', agent: '🔧' }[r] ?? '👤' },
     roleDesc(r)   {
       return {
         admin:      'Accès total — gestion des utilisateurs incluse',
         manager:    'Gestion des missions et du personnel',
-        technicien: 'Consultation et mise à jour de statut uniquement',
+        agent: 'Consultation et mise à jour de statut uniquement',
       }[r] ?? ''
     },
     availLabel(a) { return { available: 'Disponible', on_leave: 'En congé', unavailable: 'Indisponible' }[a] ?? a },
@@ -453,7 +453,7 @@ export default {
 }
 .role-admin      { background: #fef3c7; color: #d97706; }
 .role-manager    { background: #eef2ff; color: #4f6fee; }
-.role-technicien { background: #f3f4f6; color: #6b7280; }
+.role-agent { background: #f3f4f6; color: #6b7280; }
 
 .avail-badge {
   padding: 3px 10px; border-radius: 20px;

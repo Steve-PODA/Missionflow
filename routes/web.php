@@ -76,6 +76,10 @@ Route::middleware(['auth', 'verified', '2fa'])->group(function () {
         ->middleware('permission:manage personnel')
         ->name('personnel.availability');
 
+    Route::patch('/personnel/{user}/confirm-return', [PersonnelController::class, 'confirmReturn'])
+        ->middleware('permission:manage personnel')
+        ->name('personnel.confirmReturn');
+
     // Recherche globale
     Route::get('/search', SearchController::class)
         ->middleware('permission:view missions')

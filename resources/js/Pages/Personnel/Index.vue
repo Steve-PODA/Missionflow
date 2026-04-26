@@ -81,8 +81,40 @@
             </div>
           </div>
 
-          <!-- TOGGLE DISPONIBILITÉ (seulement si pas déployé) -->
-          <div class="availability-control" v-if="agent.computed_status !== 'deployed'">
+          <!-- MOTIF + DURÉE INDISPONIBILITÉ -->
+          <div v-if="agent.computed_status === 'unavailable' && (agent.unavailability_reason || agent.unavailability_start_date)" class="unavailability-reason">
+            <span class="reason-icon">🚫</span>
+            <div class="reason-body">
+              <span v-if="agent.unavailability_reason" class="reason-text">{{ agent.unavailability_reason }}</span>
+              <span v-if="agent.unavailability_start_date && agent.unavailability_duration" class="reason-until">
+                Jusqu'au <strong>{{ unavailabilityEndDate(agent) }}</strong>
+              </span>
+            </div>
+          </div>
+
+          <!-- CONGÉ EN COURS -->
+          <div v-if="agent.computed_status === 'on_leave' && agent.leave_start_date" class="leave-info">
+            <span class="leave-icon">🏖️</span>
+            <span class="leave-text">Retour prévu le <strong>{{ leaveEndDate(agent) }}</strong></span>
+          </div>
+
+          <!-- CONGÉ EXPIRÉ — confirmation requise -->
+          <div v-if="agent.computed_status === 'leave_expired'" class="leave-expired-banner">
+            <div class="expired-header">
+              <span class="expired-icon">⚠️</span>
+              <span class="expired-text">Congé échu le <strong>{{ leaveEndDate(agent) }}</strong></span>
+            </div>
+            <button
+              class="confirm-return-btn"
+              @click="confirmReturn(agent)"
+              :disabled="saving === agent.id"
+            >
+              {{ saving === agent.id ? 'Enregistrement…' : '✓ Confirmer le retour en service' }}
+            </button>
+          </div>
+
+          <!-- TOGGLE DISPONIBILITÉ (seulement si pas déployé ni en attente de confirmation) -->
+          <div class="availability-control" v-if="agent.computed_status !== 'deployed' && agent.computed_status !== 'leave_expired'">
             <span class="control-label">Disponibilité :</span>
             <div class="control-btns">
               <button
@@ -90,11 +122,66 @@
                 :key="opt.value"
                 class="ctrl-btn"
                 :class="['ctrl-' + opt.value, { active: agent.availability === opt.value }]"
-                @click="updateAvailability(agent, opt.value)"
+                @click="handleAvailabilityClick(agent, opt.value)"
                 :disabled="saving === agent.id"
               >
                 {{ opt.label }}
               </button>
+            </div>
+
+            <!-- SAISIE DURÉE CONGÉ -->
+            <div v-if="leaveDraft.agentId === agent.id" class="leave-form">
+              <span class="leave-form-label">Durée du congé :</span>
+              <div class="leave-form-row">
+                <input
+                  v-model.number="leaveDraft.duration"
+                  type="number"
+                  min="1"
+                  max="365"
+                  class="leave-input"
+                  placeholder="Ex: 14"
+                />
+                <select v-model="leaveDraft.unit" class="leave-select">
+                  <option value="days">Jours</option>
+                  <option value="months">Mois</option>
+                </select>
+                <button class="leave-confirm" @click="confirmLeave(agent)" :disabled="!leaveDraft.duration">
+                  Confirmer
+                </button>
+                <button class="leave-cancel" @click="leaveDraft.agentId = null">✕</button>
+              </div>
+            </div>
+
+            <!-- SAISIE MOTIF + DURÉE INDISPONIBILITÉ -->
+            <div v-if="unavailabilityDraft.agentId === agent.id" class="leave-form">
+              <span class="leave-form-label">Indisponibilité :</span>
+              <div class="reason-form-row">
+                <input
+                  v-model="unavailabilityDraft.reason"
+                  type="text"
+                  maxlength="255"
+                  class="reason-input"
+                  placeholder="Motif (ex: formation, santé…)"
+                />
+              </div>
+              <div class="leave-form-row" style="margin-top: 6px;">
+                <input
+                  v-model.number="unavailabilityDraft.duration"
+                  type="number"
+                  min="1"
+                  max="365"
+                  class="leave-input"
+                  placeholder="Durée"
+                />
+                <select v-model="unavailabilityDraft.unit" class="leave-select">
+                  <option value="days">Jours</option>
+                  <option value="months">Mois</option>
+                </select>
+                <button class="leave-confirm" @click="confirmUnavailability(agent)" :disabled="!unavailabilityDraft.duration">
+                  Confirmer
+                </button>
+                <button class="leave-cancel" @click="unavailabilityDraft.agentId = null">✕</button>
+              </div>
             </div>
           </div>
           <div v-else class="availability-control">
@@ -130,22 +217,25 @@ export default {
         { value: 'on_leave',    label: 'En congé'      },
         { value: 'unavailable', label: 'Indisponible'  },
       ],
+      leaveDraft: { agentId: null, duration: '', unit: 'days' },
+      unavailabilityDraft: { agentId: null, reason: '', duration: '', unit: 'days' },
     }
   },
 
   computed: {
     sortedPersonnel() {
-      const order = { available: 0, deployed: 1, on_leave: 2, unavailable: 3 }
+      const order = { available: 0, deployed: 1, leave_expired: 2, on_leave: 3, unavailable: 4 }
       return [...this.personnel].sort((a, b) =>
         (order[a.computed_status] ?? 9) - (order[b.computed_status] ?? 9)
       )
     },
     filters() {
       return [
-        { value: 'all',         label: 'Tous',          count: this.personnel.length },
-        { value: 'available',   label: 'Disponibles',   count: this.counts.available },
-        { value: 'deployed',    label: 'En mission',    count: this.counts.deployed },
-        { value: 'unavailable', label: 'Indisponibles', count: this.counts.unavailable },
+        { value: 'all',          label: 'Tous',              count: this.personnel.length },
+        { value: 'available',    label: 'Disponibles',       count: this.counts.available },
+        { value: 'deployed',     label: 'En mission',        count: this.counts.deployed },
+        { value: 'unavailable',  label: 'Indisponibles',     count: this.counts.unavailable },
+        { value: 'leave_expired',label: 'Retour à confirmer',count: this.counts.leave_expired },
       ]
     },
     filteredPersonnel() {
@@ -157,6 +247,7 @@ export default {
           list = list.filter(p => p.computed_status === this.activeFilter)
         }
       }
+
       if (this.search.trim()) {
         const q = this.search.toLowerCase()
         list = list.filter(p => p.name.toLowerCase().includes(q) || p.role?.toLowerCase().includes(q))
@@ -165,11 +256,12 @@ export default {
     },
     counts() {
       return {
-        available:   this.personnel.filter(p => p.computed_status === 'available').length,
-        deployed:    this.personnel.filter(p => p.computed_status === 'deployed').length,
-        unavailable: this.personnel.filter(p =>
+        available:     this.personnel.filter(p => p.computed_status === 'available').length,
+        deployed:      this.personnel.filter(p => p.computed_status === 'deployed').length,
+        unavailable:   this.personnel.filter(p =>
           p.computed_status === 'on_leave' || p.computed_status === 'unavailable'
         ).length,
+        leave_expired: this.personnel.filter(p => p.computed_status === 'leave_expired').length,
       }
     },
   },
@@ -184,15 +276,91 @@ export default {
       return `hsl(${Math.abs(hash) % 360}, 50%, 38%)`
     },
     statusLabel(status) {
-      return { available: 'Disponible', deployed: 'Déployé', on_leave: 'En congé', unavailable: 'Indisponible' }[status] ?? status
+      return {
+        available:    'Disponible',
+        deployed:     'Déployé',
+        on_leave:     'En congé',
+        unavailable:  'Indisponible',
+        leave_expired:'Retour à confirmer',
+      }[status] ?? status
     },
-    updateAvailability(agent, value) {
-      if (agent.availability === value) return
+    handleAvailabilityClick(agent, value) {
+      const noActiveDraft = this.leaveDraft.agentId !== agent.id && this.unavailabilityDraft.agentId !== agent.id
+      if (agent.availability === value && noActiveDraft) return
+
+      if (value === 'on_leave') {
+        this.leaveDraft = { agentId: agent.id, duration: '', unit: 'days' }
+        this.unavailabilityDraft.agentId = null
+        return
+      }
+      if (value === 'unavailable') {
+        this.unavailabilityDraft = { agentId: agent.id, reason: '', duration: '', unit: 'days' }
+        this.leaveDraft.agentId = null
+        return
+      }
+
+      this.leaveDraft.agentId = null
+      this.unavailabilityDraft.agentId = null
       this.saving = agent.id
       router.patch(route('personnel.availability', agent.id), { availability: value }, {
         preserveScroll: true,
         onFinish: () => { this.saving = null },
       })
+    },
+    confirmUnavailability(agent) {
+      if (!this.unavailabilityDraft.duration) return
+      this.saving = agent.id
+      const draft = { ...this.unavailabilityDraft }
+      this.unavailabilityDraft.agentId = null
+      router.patch(route('personnel.availability', agent.id), {
+        availability:             'unavailable',
+        unavailability_reason:    draft.reason || null,
+        unavailability_duration:  draft.duration,
+        unavailability_unit:      draft.unit,
+      }, {
+        preserveScroll: true,
+        onFinish: () => { this.saving = null },
+      })
+    },
+    unavailabilityEndDate(agent) {
+      if (!agent.unavailability_start_date || !agent.unavailability_duration || !agent.unavailability_unit) return null
+      const d = new Date(agent.unavailability_start_date)
+      if (agent.unavailability_unit === 'months') {
+        d.setMonth(d.getMonth() + agent.unavailability_duration)
+      } else {
+        d.setDate(d.getDate() + agent.unavailability_duration)
+      }
+      return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
+    },
+    confirmLeave(agent) {
+      if (!this.leaveDraft.duration) return
+      this.saving = agent.id
+      this.leaveDraft.agentId = null
+      router.patch(route('personnel.availability', agent.id), {
+        availability:   'on_leave',
+        leave_duration: this.leaveDraft.duration,
+        leave_unit:     this.leaveDraft.unit,
+      }, {
+        preserveScroll: true,
+        onFinish: () => { this.saving = null },
+      })
+    },
+    confirmReturn(agent) {
+      this.saving = agent.id
+      router.patch(route('personnel.confirmReturn', agent.id), {}, {
+        preserveScroll: true,
+        onFinish: () => { this.saving = null },
+      })
+    },
+    leaveEndDate(agent) {
+      if (!agent.leave_start_date || !agent.leave_duration || !agent.leave_unit) return null
+      const start = new Date(agent.leave_start_date)
+      if (agent.leave_unit === 'months') {
+        start.setMonth(start.getMonth() + agent.leave_duration)
+      } else {
+        start.setDate(start.getDate() + agent.leave_duration)
+      }
+      return start.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
     },
   },
 }
@@ -303,10 +471,11 @@ export default {
 }
 .agent-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,.1); }
 
-.card-available   { border-color: #d1fae5; }
-.card-deployed    { border-color: #fed7aa; }
-.card-on_leave    { border-color: #e5e7eb; }
-.card-unavailable { border-color: #fee2e2; }
+.card-available     { border-color: #d1fae5; }
+.card-deployed      { border-color: #fed7aa; }
+.card-on_leave      { border-color: #e5e7eb; }
+.card-unavailable   { border-color: #fee2e2; }
+.card-leave_expired { border-color: #fde68a; }
 
 /* TOP */
 .agent-top {
@@ -327,10 +496,11 @@ export default {
   padding: 4px 10px; border-radius: 20px;
   text-transform: uppercase; letter-spacing: 0.5px;
 }
-.badge-available   { background: #d1fae5; color: #059669; }
-.badge-deployed    { background: #fed7aa; color: #d97706; }
-.badge-on_leave    { background: #f3f4f6; color: #6b7280; }
-.badge-unavailable { background: #fee2e2; color: #dc2626; }
+.badge-available     { background: #d1fae5; color: #059669; }
+.badge-deployed      { background: #fed7aa; color: #d97706; }
+.badge-on_leave      { background: #f3f4f6; color: #6b7280; }
+.badge-unavailable   { background: #fee2e2; color: #dc2626; }
+.badge-leave_expired { background: #fef3c7; color: #b45309; }
 
 /* INFOS */
 .agent-name { font-size: 16px; font-weight: 700; color: #1a1f2e; margin: 0 0 4px; }
@@ -402,6 +572,166 @@ export default {
   color: #9ca3af;
   font-style: italic;
 }
+
+/* CONGÉ EXPIRÉ */
+.leave-expired-banner {
+  background: #fffbeb;
+  border: 1.5px solid #fde68a;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.expired-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #92400e;
+}
+.expired-icon { font-size: 15px; }
+.confirm-return-btn {
+  width: 100%;
+  padding: 9px 12px;
+  background: #16a34a;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+  letter-spacing: 0.2px;
+}
+.confirm-return-btn:hover:not(:disabled) { background: #15803d; }
+.confirm-return-btn:disabled { opacity: 0.6; cursor: wait; }
+
+/* MOTIF INDISPONIBILITÉ */
+.unavailability-reason {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #be123c;
+}
+.reason-icon { font-size: 14px; flex-shrink: 0; margin-top: 2px; }
+.reason-body { display: flex; flex-direction: column; gap: 2px; }
+.reason-text { line-height: 1.4; word-break: break-word; }
+.reason-until { font-size: 12px; opacity: 0.85; }
+
+.reason-form-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.reason-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #1a1f2e;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.reason-input:focus { border-color: #4f6fee; }
+
+/* CONGÉ EN COURS */
+.leave-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #15803d;
+}
+.leave-icon { font-size: 15px; }
+.leave-text { line-height: 1.3; }
+
+/* FORMULAIRE DURÉE CONGÉ */
+.leave-form {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #e5e7eb;
+}
+.leave-form-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.leave-form-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.leave-input {
+  width: 72px;
+  padding: 6px 8px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #1a1f2e;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.leave-input:focus { border-color: #4f6fee; }
+.leave-select {
+  padding: 6px 8px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #1a1f2e;
+  background: white;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.leave-select:focus { border-color: #4f6fee; }
+.leave-confirm {
+  padding: 6px 12px;
+  background: #4f6fee;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.leave-confirm:hover:not(:disabled) { background: #3a56d4; }
+.leave-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
+.leave-cancel {
+  padding: 6px 8px;
+  background: none;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #9ca3af;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.leave-cancel:hover { border-color: #dc2626; color: #dc2626; }
 
 @media (max-width: 640px) {
   .page-wrapper { padding: 16px; }
