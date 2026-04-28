@@ -13,7 +13,7 @@
         </button>
       </div>
 
-      <div v-if="!$page.props.auth.can.create_missions" class="technicien-banner">
+      <div v-if="!$page.props.auth.can.create_missions" class="agent-banner">
         🪖 Vue personnelle — vous ne voyez que les opérations auxquelles vous êtes affecté.
       </div>
 
@@ -313,7 +313,7 @@ export default {
 .btn-deploy:hover, .btn-abandon:hover { opacity: 0.8; }
 
 /* BANNIÈRE TECHNICIEN */
-.technicien-banner {
+.agent-banner {
   background: #eef2ff;
   border: 1px solid #c7d2fe;
   border-radius: 10px;

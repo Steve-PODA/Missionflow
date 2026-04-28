@@ -60,9 +60,11 @@
                 type="date"
                 v-model="form.date"
                 class="form-input"
-                :class="{ 'input-error': errors.date }"
+                :class="{ 'input-error': errors.date || dateError }"
+                :min="today"
               />
-              <span v-if="errors.date" class="error-msg">{{ errors.date[0] }}</span>
+              <span v-if="dateError" class="error-msg">La date ne peut pas être dans le passé.</span>
+              <span v-else-if="errors.date" class="error-msg">{{ errors.date[0] }}</span>
             </div>
             <div class="form-group">
               <label>Heure H <span class="required">*</span></label>
@@ -220,6 +222,7 @@ export default {
     return {
       isSaving: false,
       errors: {},
+        today: new Date().toLocaleDateString('sv-SE'),
       form: {
         title: '',
         briefing: '',
@@ -256,8 +259,12 @@ export default {
         return m && (m.computed_status === 'on_leave' || m.computed_status === 'unavailable')
       })
     },
+    dateError() {
+      return this.form.date && this.form.date < this.today
+    },
     isValid() {
       return (
+        !this.dateError &&
         this.form.title.trim() &&
         this.form.company.trim() &&
         this.form.date &&

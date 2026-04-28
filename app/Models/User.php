@@ -46,8 +46,13 @@ class User extends Authenticatable
         'role',
         'avatar',
         'availability',
-        'is_blocked',
-        'google2fa_secret',
+        'leave_start_date',
+        'leave_duration',
+        'leave_unit',
+        'unavailability_reason',
+        'unavailability_start_date',
+        'unavailability_duration',
+        'unavailability_unit',
     ];
 
     /**
@@ -68,6 +73,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password'          => 'hashed',
             'is_blocked'        => 'boolean',
+            'leave_start_date'          => 'date',
+            'unavailability_start_date' => 'date',
         ];
     }
 

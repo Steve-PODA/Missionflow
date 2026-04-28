@@ -33,6 +33,24 @@
           </select>
           <span class="chevron">v</span>
         </div>
+        <div class="select-wrapper">
+          <select v-model="filterPeriod">
+            <option value="">Toutes les périodes</option>
+            <option value="today">Aujourd'hui</option>
+            <option value="this_week">Cette semaine</option>
+            <option value="this_month">Ce mois</option>
+            <option value="last_month">Mois dernier</option>
+            <option value="this_year">Cette année</option>
+            <option value="custom">Période personnalisée</option>
+          </select>
+          <span class="chevron">v</span>
+        </div>
+      </div>
+      <div v-if="filterPeriod === 'custom'" class="custom-period">
+        <input type="date" v-model="customStart" class="date-input" />
+        <span class="period-sep">→</span>
+        <input type="date" v-model="customEnd" class="date-input" :class="{ 'date-input-error': dateRangeError }" />
+        <span v-if="dateRangeError" class="date-error">La date de fin doit être après la date de début</span>
       </div>
     </div>
 
@@ -48,7 +66,7 @@
           <h3 :class="{ 'active-title': mission.status === 'in_progress' }">{{ mission.title }}</h3>
           <div class="card-header-right">
             <span class="status-badge" :class="statusClass(mission.status)">{{ statusLabel(mission.status) }}</span>
-            <button v-if="$page.props.auth.can.edit_missions" class="edit-btn" @click.stop="$emit('edit', mission)" title="Modifier">✏️</button>
+            <button v-if="$page.props.auth.can.edit_missions && mission.status !== 'completed' && mission.status !== 'cancelled'" class="edit-btn" @click.stop="$emit('edit', mission)" title="Modifier">✏️</button>
           </div>
         </div>
         <p class="company">{{ mission.company }}</p>
@@ -111,7 +129,10 @@ export default {
       search: '',
       filterStatus: '',
       filterMember: '',
-      filterPriority: ''
+      filterPriority: '',
+      filterPeriod: '',
+      customStart: '',
+      customEnd: '',
     }
   },
   
@@ -132,33 +153,65 @@ export default {
       // On retire les doublons pour avoir une liste propre
       return [...new Set(names)].sort();
     },
+    dateRangeError() {
+      return this.customStart && this.customEnd && this.customEnd < this.customStart
+    },
+    periodRange() {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      if (this.filterPeriod === 'today') {
+        const end = new Date(today); end.setHours(23, 59, 59)
+        return { start: today, end }
+      }
+      if (this.filterPeriod === 'this_week') {
+        const start = new Date(today)
+        start.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1))
+        const end = new Date(start); end.setDate(start.getDate() + 6); end.setHours(23, 59, 59)
+        return { start, end }
+      }
+      if (this.filterPeriod === 'this_month') {
+        const start = new Date(today.getFullYear(), today.getMonth(), 1)
+        const end   = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59)
+        return { start, end }
+      }
+      if (this.filterPeriod === 'last_month') {
+        const start = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+        const end   = new Date(today.getFullYear(), today.getMonth(), 0, 23, 59, 59)
+        return { start, end }
+      }
+      if (this.filterPeriod === 'this_year') {
+        const start = new Date(today.getFullYear(), 0, 1)
+        const end   = new Date(today.getFullYear(), 11, 31, 23, 59, 59)
+        return { start, end }
+      }
+      if (this.filterPeriod === 'custom' && this.customStart && this.customEnd && !this.dateRangeError) {
+        return { start: new Date(this.customStart), end: new Date(this.customEnd + 'T23:59:59') }
+      }
+      return null
+    },
     filteredMissions() {
-      const data = this.missions || [];
+      const data  = this.missions || []
+      const range = this.periodRange
 
       return data.filter(m => {
-        // 1. Filtre par texte (Titre ou Entreprise)
-        const searchTerm = this.search.toLowerCase();
+        const searchTerm  = this.search.toLowerCase()
         const matchSearch = !this.search ||
-          (m.title && m.title.toLowerCase().includes(searchTerm)) ||
-          (m.company && m.company.toLowerCase().includes(searchTerm));
+          (m.title   && m.title.toLowerCase().includes(searchTerm)) ||
+          (m.company && m.company.toLowerCase().includes(searchTerm))
 
-        // 2. Filtre par statut
-        const matchStatus = !this.filterStatus || m.status === this.filterStatus;
+        const matchStatus   = !this.filterStatus   || m.status === this.filterStatus
+        const matchMember   = !this.filterMember   || (m.users && m.users.some(u => u.name === this.filterMember))
+        const matchPriority = !this.filterPriority || m.priority === this.filterPriority
 
-        // 3. Filtre par membre (On cherche si le membre sélectionné est dans le tableau users)
-        const matchMember = !this.filterMember ||
-          (m.users && m.users.some(u => u.name === this.filterMember));
+        let matchPeriod = true
+        if (range && m.date) {
+          const d = new Date(m.date + 'T00:00:00')
+          matchPeriod = d >= range.start && d <= range.end
+        }
 
-        // 4. Filtre par priorité
-        const matchPriority = !this.filterPriority || m.priority === this.filterPriority;
-
-        return matchSearch && matchStatus && matchMember && matchPriority;
-      }).sort((a, b) => {
-        // Tri par date (mission la plus proche en premier)
-        const dateA = new Date(a.date || '9999-12-31');
-        const dateB = new Date(b.date || '9999-12-31');
-        return dateA - dateB;
-      });
+        return matchSearch && matchStatus && matchMember && matchPriority && matchPeriod
+      }).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
     }
   },
 
@@ -266,8 +319,31 @@ export default {
   display: flex;
   gap: 16px;
   align-items: center;
-  margin-bottom: 28px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
 }
+.custom-period {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.date-input {
+  padding: 8px 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #1a1f2e;
+  background: white;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.date-input:focus { border-color: #4f6fee; }
+.date-input-error { border-color: #dc2626 !important; background: #fff5f5; }
+.date-error { font-size: 12px; color: #dc2626; font-weight: 500; white-space: nowrap; }
+.period-sep { font-size: 14px; color: #9ca3af; font-weight: 600; }
 .search-wrapper {
   flex: 1;
   position: relative;

@@ -45,8 +45,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'manage personnel',
         ]);
 
-        // Technicien : consultation et mise à jour de statut uniquement
-        $technicien = Role::create(['name' => 'technicien']);
+        // Agent : consultation et mise à jour de statut uniquement
+        $technicien = Role::create(['name' => 'agent']);
         $technicien->givePermissionTo([
             'view missions',
             'update mission status',

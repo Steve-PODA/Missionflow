@@ -24,3 +24,5 @@ yarn-error.log
 
 # YoYo AI version control directory
 .yoyo/
+
+CLAUDE.md

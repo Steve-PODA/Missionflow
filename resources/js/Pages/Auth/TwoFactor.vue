@@ -14,14 +14,14 @@
             maxlength="6"
             placeholder="000000"
             class="otp-input"
-            :class="{ 'input-error': errors.one_time_password }"
+            :class="{ 'input-error': form.errors.one_time_password }"
             autofocus
             autocomplete="off"
           />
-          <span v-if="errors.one_time_password" class="error-msg">{{ errors.one_time_password }}</span>
+          <span v-if="form.errors.one_time_password" class="error-msg">{{ form.errors.one_time_password }}</span>
         </div>
 
-        <button type="submit" class="btn-submit" :disabled="form.one_time_password.length !== 6">
+        <button type="submit" class="btn-submit" :disabled="form.one_time_password.length !== 6 || form.processing">
           Vérifier
         </button>
       </form>
@@ -34,30 +34,19 @@
   </div>
 </template>
 
-<script>
-import { router, usePage } from '@inertiajs/vue3'
+<script setup>
+import { useForm } from '@inertiajs/vue3'
 
-export default {
-  name: 'TwoFactor',
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? ''
 
-  props: {
-    errors: { type: Object, default: () => ({}) },
-  },
+const form = useForm({
+  one_time_password: '',
+})
 
-  data() {
-    return {
-      form: { one_time_password: '' },
-      csrfToken: document.querySelector('meta[name="csrf-token"]')?.content ?? '',
-    }
-  },
-
-  methods: {
-    submit() {
-      router.post(route('2fa.verify.submit'), this.form, {
-        onError: (errors) => { this.errors = errors },
-      })
-    },
-  },
+function submit() {
+  form.post(route('2fa.verify.submit'), {
+    onError: () => form.reset('one_time_password'),
+  })
 }
 </script>
 
