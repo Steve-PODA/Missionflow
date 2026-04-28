@@ -30,7 +30,7 @@ class TwoFactorController extends Controller
             return back()->withErrors(['one_time_password' => 'Code invalide. Vérifiez votre application d\'authentification.']);
         }
 
-        $request->session()->put('2fa_verified', true);
+        $request->session()->put('2fa_verified_at', now()->timestamp);
         $request->session()->regenerate();
 
         return redirect()->intended(route('home'));
@@ -73,7 +73,7 @@ class TwoFactorController extends Controller
             return back()->withErrors(['one_time_password' => 'Code invalide. Scannez à nouveau le QR code.']);
         }
 
-        $request->session()->put('2fa_verified', true);
+        $request->session()->put('2fa_verified_at', now()->timestamp);
         $request->session()->regenerate();
 
         return redirect()->route('home')->with('success', 'Double authentification activée avec succès.');
