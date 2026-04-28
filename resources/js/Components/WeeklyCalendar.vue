@@ -124,9 +124,13 @@ const props = defineProps({
 })
 
 defineEmits(['open-event'])
+ import { inject } from 'vue'
 
 // ─── MODE ─────────────────────────────────────────────────────
 const viewMode   = ref('week')
+@@
+@@const showNotification = inject('showNotification', () => {})
+@@
 const currentDate = ref(new Date(props.initialDate))
 
 const HOUR_HEIGHT    = 56
@@ -305,10 +309,18 @@ function onMonthDrop(newDate) {
   const missionId = monthDraggingEvent.value.id
   const startTime = monthDraggingEvent.value.startTime
   onMonthDragEnd()
-  router.patch(route('missions.reschedule', missionId), {
+    router.patch(route('missions.reschedule', missionId), { 
     date:       newDate,
     start_time: startTime,
-  }, { preserveScroll: true })
+  }, { 
+    preserveScroll: true,
+    onError: (errs) => {
+      const errorMessages = Object.values(errs).flat()
+      if (errorMessages.length > 0) {
+        showNotification(errorMessages[0], 'error')
+      }
+    }
+  })
 }
 
 // ─── DRAG & DROP SEMAINE ───────────────────────────────────────

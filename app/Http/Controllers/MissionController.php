@@ -66,7 +66,7 @@ class MissionController extends Controller
             'title'        => 'required|string|max:255',
             'briefing'     => 'nullable|string',
             'company'      => 'required|string|max:255',
-            'date'         => 'required|date',
+            'date'         => 'required|date|after_or_equal:today',
             'startTime'    => 'required|date_format:H:i',
             'duration'     => 'required|numeric|in:0.5,1,2,4,8',
             'priority'     => 'required|in:low,medium,high,urgent',
@@ -76,6 +76,8 @@ class MissionController extends Controller
             'clientName'   => 'required|string',
             'clientEmail'  => 'nullable|email',
             'clientPhone'  => 'required|string',
+        ], [
+            'date.after_or_equal' => 'La date de la mission ne peut pas être dans le passé.',
         ]);
 
         $mission = Mission::create([
@@ -140,6 +142,8 @@ class MissionController extends Controller
             'clientName'     => 'required|string',
             'clientEmail'    => 'nullable|email',
             'clientPhone'    => 'required|string',
+        ], [
+            'date.after_or_equal' => 'La date de la mission ne peut pas être dans le passé.',
         ]);
 
         $mission->update([
@@ -164,8 +168,10 @@ class MissionController extends Controller
     public function reschedule(Request $request, Mission $mission)
     {
         $request->validate([
-            'date'       => 'required|date',
+            'date'       => 'required|date|after_or_equal:today',
             'start_time' => 'required|date_format:H:i',
+        ], [
+            'date.after_or_equal' => 'La date de la mission ne peut pas être dans le passé.',
         ]);
 
         $oldDate = $mission->date;
