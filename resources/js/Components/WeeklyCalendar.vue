@@ -124,13 +124,14 @@ const props = defineProps({
 })
 
 defineEmits(['open-event'])
- import { inject } from 'vue'
+
+import { inject } from 'vue'
 
 // ─── MODE ─────────────────────────────────────────────────────
 const viewMode   = ref('week')
-@@
-@@const showNotification = inject('showNotification', () => {})
-@@
+
+const showNotification = inject('showNotification', () => {})
+
 const currentDate = ref(new Date(props.initialDate))
 
 const HOUR_HEIGHT    = 56
