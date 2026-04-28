@@ -29,9 +29,9 @@ class MissionController extends Controller
 
         /** @var \App\Models\User $authUser */
         $authUser     = Auth::user();
-        $isTechnicien = $authUser->hasRole('technicien');
+        $isTechnicien = $authUser->hasRole('agent');
 
-        $missionsQuery = Mission::with('users')->orderBy('date', 'desc');
+        $missionsQuery = Mission::with('users')->orderBy('created_at', 'desc');
 
         if ($isTechnicien) {
             $missionsQuery->whereHas('users', fn($q) => $q->where('users.id', $authUser->id));
@@ -106,6 +106,11 @@ class MissionController extends Controller
      */
     public function edit(Mission $mission)
     {
+        if (in_array($mission->status, ['completed', 'cancelled'])) {
+            return redirect()->route('missions.index')
+                ->with('error', 'Cette opération est terminée et ne peut plus être modifiée.');
+        }
+
         $mission->load('users');
 
         return Inertia::render('Missions/MissionEditor', [
@@ -116,11 +121,16 @@ class MissionController extends Controller
 
     public function update(Request $request, Mission $mission)
     {
+        if (in_array($mission->status, ['completed', 'cancelled'])) {
+            return redirect()->route('missions.index')
+                ->with('error', 'Cette opération est terminée et ne peut plus être modifiée.');
+        }
+
         $validated = $request->validate([
             'title'          => 'required|string|max:255',
             'briefing'       => 'nullable|string',
             'company'        => 'required|string|max:255',
-            'date'           => 'required|date',
+            'date'           => ['required', 'date', $request->date !== $mission->date ? 'after_or_equal:today' : ''],
             'startTime'      => 'required|date_format:H:i',
             'duration'       => 'required|numeric|in:0.5,1,2,4,8',
             'priority'       => 'required|in:low,medium,high,urgent',

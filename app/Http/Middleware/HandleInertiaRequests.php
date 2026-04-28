@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -13,6 +14,18 @@ class HandleInertiaRequests extends Middleware
      * @var string
      */
     protected $rootView = 'app';
+
+    public function handle(Request $request, \Closure $next): \Symfony\Component\HttpFoundation\Response
+    {
+        $response = parent::handle($request, $next);
+
+        if (Auth::check()) {
+            $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate');
+            $response->headers->set('Pragma', 'no-cache');
+        }
+
+        return $response;
+    }
 
     /**
      * Determine the current asset version.

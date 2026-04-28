@@ -136,8 +136,23 @@ function closeAvatarMenu(e) {
   }
 }
 
-onMounted(() => document.addEventListener('click', closeAvatarMenu))
-onUnmounted(() => document.removeEventListener('click', closeAvatarMenu))
+function sendCloseBeacon() {
+  const token = document.querySelector('meta[name="csrf-token"]')?.content
+  if (!token) return
+  const data = new FormData()
+  data.append('_token', token)
+  navigator.sendBeacon('/auth/session-close', data)
+}
+
+onMounted(() => {
+  document.addEventListener('click', closeAvatarMenu)
+  window.addEventListener('beforeunload', sendCloseBeacon)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', closeAvatarMenu)
+  window.removeEventListener('beforeunload', sendCloseBeacon)
+})
 
 function triggerAvatarInput() {
   showAvatarMenu.value = false

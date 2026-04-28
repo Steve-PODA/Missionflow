@@ -22,9 +22,9 @@ class UserSeeder extends Seeder
         $personnel = [
             ['name' => 'Colonel Leclerc',   'email' => 'leclerc@exemple.com',  'role' => 'Officier de renseignement', 'spatie' => 'manager'],
             ['name' => 'Capitaine Renard',  'email' => 'renard@exemple.com',   'role' => 'Chef d\'unité',             'spatie' => 'manager'],
-            ['name' => 'Lieutenant Dubois', 'email' => 'dubois@exemple.com',   'role' => 'Agent de terrain',          'spatie' => 'technicien'],
-            ['name' => 'Sergent Martin',    'email' => 'martin@exemple.com',   'role' => 'Agent de terrain',          'spatie' => 'technicien'],
-            ['name' => 'Caporal Petit',     'email' => 'petit@exemple.com',    'role' => 'Agent de terrain',          'spatie' => 'technicien'],
+            ['name' => 'Lieutenant Dubois', 'email' => 'dubois@exemple.com',   'role' => 'Agent de terrain',          'spatie' => 'agent'],
+            ['name' => 'Sergent Martin',    'email' => 'martin@exemple.com',   'role' => 'Agent de terrain',          'spatie' => 'agent'],
+            ['name' => 'Caporal Petit',     'email' => 'petit@exemple.com',    'role' => 'Agent de terrain',          'spatie' => 'agent'],
         ];
 
         foreach ($personnel as $p) {

@@ -13,17 +13,23 @@ class HomeController extends Controller
     {
         /** @var \App\Models\User $authUser */
         $authUser      = Auth::user();
-        $isTechnicien  = $authUser->hasRole('technicien');
+        $isTechnicien  = $authUser->hasRole('agent');
 
         // Équipe : tous les membres (utile pour tout le monde)
         $team = User::withCount('missions')
             ->with(['missions' => fn($q) => $q->where('status', 'in_progress')
                 ->select('missions.id', 'missions.title')])
             ->get()
-            ->map(fn($user) => array_merge($user->toArray(), [
+            ->map(fn($user) => [
+                'id'              => $user->id,
+                'name'            => $user->name,
+                'role'            => $user->role,
+                'avatar'          => $user->avatar,
+                'availability'    => $user->availability,
+                'missions_count'  => $user->missions_count,
                 'active_mission'  => $user->missions->first(),
                 'computed_status' => $user->missions->isNotEmpty() ? 'deployed' : $user->availability,
-            ]));
+            ]);
 
         // Missions : filtrées pour les techniciens
         $missionsQuery = Mission::with('users')

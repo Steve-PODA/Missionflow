@@ -109,10 +109,14 @@
               :class="'btn-' + nextStatus.value"
               @click="changeStatus(nextStatus.value)"
             >{{ nextStatus.label }}</button>
-            <button v-if="$page.props.auth.can.edit_missions" class="btn-edit" @click="$emit('edit', mission)">✏️ Modifier</button>
+            <button v-if="$page.props.auth.can.edit_missions" class="btn-edit" @click="requestEdit">✏️ Modifier</button>
             <button v-if="$page.props.auth.can.edit_missions" class="btn-delete" @click="confirmDelete = true">🗑️</button>
           </template>
         </div>
+      </div>
+
+      <div v-if="editLocked" class="edit-locked-msg">
+        🔒 Cette opération est terminée et ne peut plus être modifiée.
       </div>
 
     </div>
@@ -134,6 +138,7 @@ export default {
   data() {
     return {
       confirmDelete: false,
+      editLocked:    false,
     }
   },
 
@@ -189,6 +194,14 @@ export default {
         preserveScroll: true,
         onSuccess: () => this.$emit('close'),
       })
+    },
+    requestEdit() {
+      if (this.mission.status === 'completed' || this.mission.status === 'cancelled') {
+        this.editLocked = true
+        setTimeout(() => { this.editLocked = false }, 4000)
+        return
+      }
+      this.$emit('edit', this.mission)
     },
     deleteMission() {
       router.delete(route('missions.destroy', this.mission.id), {
@@ -394,6 +407,21 @@ export default {
   font-weight: 600;
   color: #ef4444;
   align-self: center;
+}
+.edit-locked-msg {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #92400e;
+  animation: fadeIn 0.2s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .modal-content::-webkit-scrollbar { width: 5px; }

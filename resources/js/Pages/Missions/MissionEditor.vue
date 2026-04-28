@@ -55,9 +55,11 @@
                 type="date"
                 v-model="form.date"
                 class="form-input"
-                :class="{ 'input-error': errors.date }"
+                :class="{ 'input-error': errors.date || dateError }"
+                :min="today"
               />
-              <span v-if="errors.date" class="error-msg">{{ errors.date[0] }}</span>
+              <span v-if="dateError" class="error-msg">La date ne peut pas être dans le passé.</span>
+              <span v-else-if="errors.date" class="error-msg">{{ errors.date[0] }}</span>
             </div>
             <div class="form-group">
               <label>Heure H <span class="required">*</span></label>
@@ -246,11 +248,14 @@ export default {
 
   data() {
     const selectedTeam = (this.mission.users ?? []).map(u => u.id)
+    const today = new Date().toISOString().split('T')[0]
     return {
-      isSaving:   false,
-      errors:     {},
-      leaderId:   selectedTeam.length === 1 ? selectedTeam[0] : null,
-      autoFilled: false,
+      isSaving:     false,
+      errors:       {},
+      leaderId:     selectedTeam.length === 1 ? selectedTeam[0] : null,
+      autoFilled:   false,
+      today,
+      originalDate: this.mission.date ?? '',
       form: {
         title:        this.mission.title        ?? '',
         briefing:     this.mission.briefing     ?? '',
@@ -309,9 +314,13 @@ export default {
         .map(id => this.team.find(m => m.id === id))
         .filter(Boolean)
     },
+    dateError() {
+      return this.form.date && this.form.date !== this.originalDate && this.form.date < this.today
+    },
     isValid() {
       const leaderOk = this.form.selectedTeam.length < 2 || this.leaderId !== null
       return (
+        !this.dateError &&
         this.form.title.trim() &&
         this.form.company.trim() &&
         this.form.date &&

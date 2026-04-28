@@ -25,12 +25,18 @@ class RequireTwoFactor
         }
 
         // Si la 2FA est configurée mais pas encore vérifiée pour cette session
-        if (!$request->session()->get('2fa_verified')) {
+        $verifiedAt = $request->session()->get('2fa_verified_at');
+        $lifetime   = config('session.lifetime') * 60; // secondes
+
+        if (!$verifiedAt || (now()->timestamp - $verifiedAt) > $lifetime) {
             if ($request->routeIs('2fa.verify', '2fa.verify.submit', 'logout')) {
                 return $next($request);
             }
             return redirect()->route('2fa.verify');
         }
+
+        // Fenêtre glissante : on rafraîchit le timestamp à chaque requête
+        $request->session()->put('2fa_verified_at', now()->timestamp);
 
         return $next($request);
     }
