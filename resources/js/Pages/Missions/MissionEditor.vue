@@ -384,7 +384,7 @@ export default {
         onError: (errs) => {
           this.isSaving = false
           this.errors   = errs
-          
+
           // Afficher le premier message d'erreur comme une notification
           const errorMessages = Object.values(errs).flat()
           if (errorMessages.length > 0) {

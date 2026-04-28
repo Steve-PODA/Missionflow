@@ -309,10 +309,10 @@ function onMonthDrop(newDate) {
   const missionId = monthDraggingEvent.value.id
   const startTime = monthDraggingEvent.value.startTime
   onMonthDragEnd()
-    router.patch(route('missions.reschedule', missionId), { 
+    router.patch(route('missions.reschedule', missionId), {
     date:       newDate,
     start_time: startTime,
-  }, { 
+  }, {
     preserveScroll: true,
     onError: (errs) => {
       const errorMessages = Object.values(errs).flat()
