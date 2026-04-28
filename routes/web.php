@@ -24,6 +24,12 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/2fa/verify', [\App\Http\Controllers\Auth\TwoFactorController::class, 'verify'])->name('2fa.verify.submit');
     Route::get('/2fa/setup',   [\App\Http\Controllers\Auth\TwoFactorController::class, 'showSetup'])->name('2fa.setup');
     Route::post('/2fa/setup',  [\App\Http\Controllers\Auth\TwoFactorController::class, 'confirmSetup'])->name('2fa.setup.confirm');
+
+    // Beacon envoyé par le navigateur à la fermeture de l'onglet
+    Route::post('/auth/session-close', function (\Illuminate\Http\Request $request) {
+        $request->session()->put('closing_at', now()->timestamp);
+        return response()->noContent();
+    })->name('session.close');
 });
 
 // TOUTES les routes ci-dessous demandent d'être connecté
