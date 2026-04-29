@@ -119,7 +119,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, provide } from 'vue'
 import { Link, usePage, useForm, router } from '@inertiajs/vue3'
 import GlobalSearch from '@/Components/GlobalSearch.vue'
 
@@ -178,6 +178,15 @@ function deleteAvatar() {
 const toast     = ref(null)
 const toastType = ref('success')
 let toastTimer  = null
+
+function showNotification(message, type = 'success') {
+  clearTimeout(toastTimer)
+  toast.value     = message
+  toastType.value = type
+  toastTimer = setTimeout(() => { toast.value = null }, 3500)
+}
+
+provide('showNotification', showNotification)
 
 watch(
   () => page.props.flash,

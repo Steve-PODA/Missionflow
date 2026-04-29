@@ -236,6 +236,7 @@
 <script>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { Link, router } from '@inertiajs/vue3'
+import { inject } from 'vue'
 
 export default {
   name: 'MissionEditorPage',
@@ -246,9 +247,14 @@ export default {
     team:    { type: Array,  default: () => [] },
   },
 
+  setup() {
+    const showNotification = inject('showNotification', () => {})
+    return { showNotification }
+  },
+
   data() {
     const selectedTeam = (this.mission.users ?? []).map(u => u.id)
-    const today = new Date().toISOString().split('T')[0]
+    const today = new Date().toLocaleDateString('sv-SE')
     return {
       isSaving:     false,
       errors:       {},
@@ -378,6 +384,12 @@ export default {
         onError: (errs) => {
           this.isSaving = false
           this.errors   = errs
+
+          // Afficher le premier message d'erreur comme une notification
+          const errorMessages = Object.values(errs).flat()
+          if (errorMessages.length > 0) {
+            this.showNotification(errorMessages[0], 'error')
+          }
         },
       })
     },
