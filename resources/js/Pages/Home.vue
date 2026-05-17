@@ -86,23 +86,29 @@
           <button class="btn-details" @click.stop="goToMissions">Voir toutes les opérations →</button>
         </div>
 
-        <!-- ÉQUIPE -->
+        <!-- TOP AGENTS -->
         <div class="team-panel">
-          <h3>🪖 Unité</h3>
-          <div class="team-list">
-            <div class="team-card" v-for="m in team" :key="m.id">
-              <div class="avatar" :style="{ background: getAvatarColor(m.name) }">{{ getInitials(m.name) }}</div>
+          <div class="top-header">
+            <h3>🏆 Meilleurs agents</h3>
+            <div class="period-toggle">
+              <button :class="{ active: topPeriod === 'week' }" @click="topPeriod = 'week'">Semaine</button>
+              <button :class="{ active: topPeriod === 'month' }" @click="topPeriod = 'month'">Mois</button>
+            </div>
+          </div>
+          <div class="top-list">
+            <div v-if="rankedAgents.length === 0" class="top-empty">
+              Aucune mission accomplie {{ topPeriod === 'week' ? 'cette semaine' : 'ce mois-ci' }}.
+            </div>
+            <div class="top-card" v-for="(agent, index) in rankedAgents" :key="agent.id">
+              <div class="top-rank">{{ ['🥇','🥈','🥉'][index] ?? (index + 1) }}</div>
+              <div class="avatar" :style="{ background: getAvatarColor(agent.name) }">{{ getInitials(agent.name) }}</div>
               <div class="team-info">
-                <strong>{{ m.name }}</strong>
-                <small>{{ m.role }}</small>
-                <span class="status" :class="statusClass(m.computed_status)">
-                  {{ statusLabel(m.computed_status) }}
-                </span>
-                <span v-if="m.active_mission" class="active-op">⚔️ {{ m.active_mission.title }}</span>
+                <strong>{{ agent.name }}</strong>
+                <small>{{ agent.role }}</small>
               </div>
               <div class="missions-count">
-                {{ m.missions_count || 0 }}
-                <small>missions</small>
+                {{ topPeriod === 'week' ? agent.completed_week : agent.completed_month }}
+                <small>accomplie{{ (topPeriod === 'week' ? agent.completed_week : agent.completed_month) > 1 ? 's' : '' }}</small>
               </div>
             </div>
           </div>
@@ -147,6 +153,7 @@ export default {
       detailMission:  null,
       creatorOpen:    false,
       overdueOpen:    true,
+      topPeriod:      'month',
       now:            new Date(),
       countdownTimer: null,
     }
@@ -195,6 +202,14 @@ export default {
         priorityLabel: priorityMeta.label,
         priorityClass: priorityMeta.className,
       }
+    },
+
+    rankedAgents() {
+      const key = this.topPeriod === 'week' ? 'completed_week' : 'completed_month'
+      return [...this.team]
+        .filter(m => (m[key] ?? 0) > 0)
+        .sort((a, b) => (b[key] ?? 0) - (a[key] ?? 0))
+        .slice(0, 5)
     },
 
     timeTilNext() {
@@ -249,12 +264,6 @@ export default {
       let hash = 0
       for (let i = 0; i < (name || '').length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
       return `hsl(${Math.abs(hash) % 360}, 50%, 38%)`
-    },
-    statusLabel(status) {
-      return { available: 'Disponible', deployed: 'Déployé', on_leave: 'En congé', unavailable: 'Indisponible' }[status] ?? 'Disponible'
-    },
-    statusClass(status) {
-      return { available: 'free', deployed: 'busy', on_leave: 'leave', unavailable: 'off' }[status] ?? 'free'
     },
   },
 }
@@ -455,62 +464,75 @@ export default {
 }
 .btn-details:hover { opacity: 0.9; }
 
-/* TEAM */
+/* TOP AGENTS */
 .team-panel {
   background: white;
   border-radius: 20px;
   padding: 20px;
   box-shadow: 0 2px 12px rgba(0,0,0,.05);
-}
-.team-panel h3 { font-size: 14px; font-weight: 600; color: #374151; margin: 0 0 16px; }
-.team-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  max-height: 260px;
+}
+.top-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.top-header h3 { font-size: 14px; font-weight: 600; color: #374151; margin: 0; }
+.period-toggle {
+  display: flex;
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+.period-toggle button {
+  border: none; background: none; cursor: pointer;
+  font-size: 12px; font-weight: 600; color: #6b7280;
+  padding: 4px 12px; border-radius: 6px;
+  transition: all 0.15s; font-family: inherit;
+}
+.period-toggle button.active {
+  background: white;
+  color: #1a1f2e;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+.top-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
   overflow-y: auto;
 }
-.team-card {
+.top-empty {
+  text-align: center;
+  font-size: 13px;
+  color: #9ca3af;
+  padding: 32px 0;
+}
+.top-card {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px;
+  padding: 10px 12px;
   border-radius: 12px;
   background: #f9fafb;
+  transition: background 0.12s;
 }
+.top-card:first-child { background: #fffbeb; }
+.top-rank { font-size: 18px; flex-shrink: 0; width: 24px; text-align: center; }
 .avatar {
-  width: 40px; height: 40px;
-  background: #4f6fee;
+  width: 36px; height: 36px;
   color: white;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 700; flex-shrink: 0;
+  font-size: 12px; font-weight: 700; flex-shrink: 0;
 }
-.team-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-.team-info strong { font-size: 13px; color: #1a1f2e; }
+.team-info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.team-info strong { font-size: 13px; color: #1a1f2e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .team-info small  { font-size: 11px; color: #9ca3af; }
-.status {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 600;
-  width: fit-content;
-}
-.busy  { background: #fff4e5; color: #f59e0b; }
-.free  { background: #e8f8ef; color: #22c55e; }
-.leave { background: #f3f4f6; color: #6b7280; }
-.off   { background: #fee2e2; color: #dc2626; }
-.active-op {
-  display: block;
-  font-size: 11px;
-  color: #d97706;
-  margin-top: 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.missions-count { font-size: 18px; font-weight: 700; color: #1a1f2e; text-align: right; }
+.missions-count { font-size: 20px; font-weight: 700; color: #4f6fee; text-align: right; flex-shrink: 0; }
 .missions-count small { display: block; font-size: 10px; color: #9ca3af; font-weight: 400; }
 
 /* SECTIONS */

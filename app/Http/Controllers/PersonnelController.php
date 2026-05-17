@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Console\Commands\CheckPersonnelLeaves;
 use App\Models\User;
+use App\Notifications\AgentUnavailableNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 use Inertia\Inertia;
 
 class PersonnelController extends Controller
@@ -90,6 +92,11 @@ class PersonnelController extends Controller
         }
 
         $user->update($updateData);
+
+        if (in_array($request->availability, ['on_leave', 'unavailable'])) {
+            $adminsManagers = User::role(['admin', 'manager'])->where('id', '!=', auth()->id())->get();
+            Notification::send($adminsManagers, new AgentUnavailableNotification($user, $request->availability));
+        }
 
         $labels = ['available' => 'Disponible', 'on_leave' => 'En congé', 'unavailable' => 'Indisponible'];
         activity('personnel')

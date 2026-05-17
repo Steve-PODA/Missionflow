@@ -46,37 +46,39 @@
           <h2 class="table-title">Historique des envois</h2>
           <span class="badge-count">{{ logs.length }} entrées</span>
         </div>
-        <table class="logs-table" v-if="logs.length">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Agent</th>
-              <th>Mission</th>
-              <th>Téléphone</th>
-              <th>Template</th>
-              <th>Déclencheur</th>
-              <th>Statut</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="log in logs" :key="log.id">
-              <td class="cell-date">{{ log.sent_at }}</td>
-              <td class="cell-name">{{ log.user_name }}</td>
-              <td class="cell-mission">{{ log.mission_title }}</td>
-              <td class="cell-phone">{{ log.phone_number }}</td>
-              <td><span class="template-badge">{{ templateLabel(log.template) }}</span></td>
-              <td><span class="trigger-badge" :class="'trig-' + log.trigger">{{ triggerLabel(log.trigger) }}</span></td>
-              <td>
-                <span class="status-badge" :class="'st-' + log.status">
-                  <svg v-if="log.status === 'sent'" xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  <svg v-else xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                  {{ log.status === 'sent' ? 'Envoyé' : 'Échec' }}
-                </span>
-                <span v-if="log.error" class="error-hint" :title="log.error">⚠</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div v-if="logs.length" class="table-scroll">
+          <table class="logs-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Agent</th>
+                <th>Mission</th>
+                <th>Téléphone</th>
+                <th>Template</th>
+                <th>Déclencheur</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="log in logs" :key="log.id">
+                <td class="cell-date">{{ log.sent_at }}</td>
+                <td class="cell-name">{{ log.user_name }}</td>
+                <td class="cell-mission">{{ log.mission_title }}</td>
+                <td class="cell-phone">{{ log.phone_number }}</td>
+                <td><span class="template-badge">{{ templateLabel(log.template) }}</span></td>
+                <td><span class="trigger-badge" :class="'trig-' + log.trigger">{{ triggerLabel(log.trigger) }}</span></td>
+                <td>
+                  <span class="status-badge" :class="'st-' + log.status">
+                    <svg v-if="log.status === 'sent'" xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    {{ log.status === 'sent' ? 'Envoyé' : 'Échec' }}
+                  </span>
+                  <span v-if="log.error" class="error-hint" :title="log.error">⚠</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
         <div v-else class="empty-state">
           <p>Aucun envoi enregistré pour le moment.</p>
           <p class="empty-sub">Les alertes apparaîtront ici après le premier envoi automatique ou manuel.</p>
@@ -184,6 +186,7 @@ export default {
 
 /* TABLE */
 .table-wrapper { background: white; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,.06); overflow: hidden; }
+.table-scroll  { max-height: 420px; overflow-y: auto; overflow-x: auto; }
 .table-head-row { display: flex; align-items: center; gap: 12px; padding: 18px 20px 14px; border-bottom: 1px solid #f3f4f6; }
 .table-title  { font-size: 15px; font-weight: 700; color: #1a1f2e; margin: 0; }
 .badge-count  { font-size: 12px; background: #f3f4f6; color: #6b7280; padding: 2px 10px; border-radius: 20px; font-weight: 600; }
@@ -251,6 +254,6 @@ export default {
 @media (max-width: 768px) {
   .page-wrapper { padding: 16px; }
   .stats-row { grid-template-columns: 1fr 1fr; }
-  .table-wrapper { overflow-x: auto; }
+  .table-scroll { overflow-x: auto; }
 }
 </style>

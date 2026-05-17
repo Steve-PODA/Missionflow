@@ -86,6 +86,43 @@
         </div>
         <div class="topbar-right">
           <GlobalSearch />
+
+          <!-- Notification Bell -->
+          <div class="notif-wrap">
+            <button class="notif-bell" @click="toggleNotifPanel" :class="{ active: showNotifPanel }">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              <span v-if="notifCount > 0" class="notif-badge">{{ notifCount > 9 ? '9+' : notifCount }}</span>
+            </button>
+
+            <Transition name="notif-panel">
+              <div v-if="showNotifPanel" class="notif-panel">
+                <div class="notif-panel-header">
+                  <span>Notifications</span>
+                  <button v-if="notifCount > 0" class="notif-read-all" @click="markAllRead">Tout lire</button>
+                </div>
+                <div class="notif-list">
+                  <div v-if="notifications.items.length === 0" class="notif-empty">
+                    Aucune nouvelle notification
+                  </div>
+                  <div
+                    v-for="notif in notifications.items"
+                    :key="notif.id"
+                    class="notif-item"
+                    :class="'notif-' + notif.data.type"
+                    @click="handleNotifClick(notif)"
+                  >
+                    <div class="notif-dot"></div>
+                    <div class="notif-content">
+                      <div class="notif-title">{{ notif.data.title }}</div>
+                      <div class="notif-body">{{ notif.data.body }}</div>
+                      <div class="notif-time">{{ notif.created_at }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Transition>
+          </div>
+
           <div class="topbar-user">
             <div class="topbar-avatar">{{ initials }}</div>
             <div class="topbar-user-info">
@@ -128,6 +165,34 @@ const avatarInput    = ref(null)
 const showAvatarMenu = ref(false)
 const avatarForm     = useForm({ avatar: null })
 
+// Notifications
+const showNotifPanel = ref(false)
+const notifications  = computed(() => page.props.notifications ?? { unread_count: 0, items: [] })
+const notifCount     = computed(() => notifications.value.unread_count)
+
+function toggleNotifPanel() { showNotifPanel.value = !showNotifPanel.value }
+
+function closeNotifPanel(e) {
+  if (!e.target.closest('.notif-wrap')) {
+    showNotifPanel.value = false
+  }
+}
+
+function handleNotifClick(notif) {
+  showNotifPanel.value = false
+  router.post(route('notifications.read', notif.id), {}, {
+    preserveScroll: true,
+    onSuccess: () => {
+      if (notif.data.action_url) router.visit(notif.data.action_url)
+    },
+  })
+}
+
+function markAllRead() {
+  showNotifPanel.value = false
+  router.post(route('notifications.read-all'), {}, { preserveScroll: true })
+}
+
 function toggleAvatarMenu() { showAvatarMenu.value = !showAvatarMenu.value }
 
 function closeAvatarMenu(e) {
@@ -146,11 +211,13 @@ function sendCloseBeacon() {
 
 onMounted(() => {
   document.addEventListener('click', closeAvatarMenu)
+  document.addEventListener('click', closeNotifPanel)
   window.addEventListener('beforeunload', sendCloseBeacon)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', closeAvatarMenu)
+  document.removeEventListener('click', closeNotifPanel)
   window.removeEventListener('beforeunload', sendCloseBeacon)
 })
 
@@ -442,6 +509,88 @@ const currentDate = computed(() => {
 
 .toast-enter-active, .toast-leave-active { transition: all 0.3s ease; }
 .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(12px); }
+
+/* ─── NOTIFICATION BELL ─────────────────────── */
+.notif-wrap { position: relative; }
+
+.notif-bell {
+  position: relative;
+  background: none; border: none; cursor: pointer;
+  color: #6b7280; padding: 8px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.notif-bell svg { width: 20px; height: 20px; }
+.notif-bell:hover, .notif-bell.active { background: #f3f4f6; color: #2A1F5C; }
+
+.notif-badge {
+  position: absolute; top: 4px; right: 4px;
+  background: #ef4444; color: #fff;
+  font-size: 10px; font-weight: 700;
+  min-width: 16px; height: 16px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 3px; line-height: 1;
+  border: 2px solid #fff;
+}
+
+.notif-panel {
+  position: absolute; top: calc(100% + 8px); right: 0;
+  width: 340px; background: #fff;
+  border: 1px solid #e5e7eb; border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+  z-index: 500; overflow: hidden;
+}
+
+.notif-panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 13px; font-weight: 700; color: #111827;
+}
+
+.notif-read-all {
+  background: none; border: none; cursor: pointer;
+  font-size: 12px; color: #5B4A9E; font-weight: 500;
+  padding: 2px 6px; border-radius: 4px;
+  transition: background 0.12s;
+}
+.notif-read-all:hover { background: #f5f3ff; }
+
+.notif-list { max-height: 360px; overflow-y: auto; }
+
+.notif-empty {
+  padding: 28px 16px; text-align: center;
+  font-size: 13px; color: #9ca3af;
+}
+
+.notif-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 16px; cursor: pointer;
+  border-bottom: 1px solid #f9fafb;
+  transition: background 0.12s;
+}
+.notif-item:last-child { border-bottom: none; }
+.notif-item:hover { background: #f9fafb; }
+
+.notif-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  flex-shrink: 0; margin-top: 5px;
+  background: #9ca3af;
+}
+.notif-whatsapp_failure .notif-dot  { background: #f59e0b; }
+.notif-mission_assigned .notif-dot  { background: #5B4A9E; }
+.notif-mission_status_updated .notif-dot { background: #10b981; }
+.notif-mission_updated .notif-dot   { background: #3b82f6; }
+.notif-mission_cancelled .notif-dot { background: #ef4444; }
+.notif-agent_unavailable .notif-dot { background: #f97316; }
+
+.notif-content { flex: 1; min-width: 0; }
+.notif-title { font-size: 13px; font-weight: 600; color: #111827; margin-bottom: 2px; }
+.notif-body  { font-size: 12px; color: #6b7280; line-height: 1.4; }
+.notif-time  { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+
+.notif-panel-enter-active, .notif-panel-leave-active { transition: all 0.2s ease; }
+.notif-panel-enter-from, .notif-panel-leave-to { opacity: 0; transform: translateY(-6px); }
 
 /* ─── RESPONSIVE ────────────────────────────── */
 @media (max-width: 768px) {

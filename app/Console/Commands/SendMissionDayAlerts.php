@@ -3,10 +3,13 @@
 namespace App\Console\Commands;
 
 use App\Models\Mission;
+use App\Models\User;
 use App\Models\WhatsAppLog;
+use App\Notifications\WhatsAppFailureNotification;
 use App\Services\WhatsAppService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Notification;
 
 class SendMissionDayAlerts extends Command
 {
@@ -69,6 +72,12 @@ class SendMissionDayAlerts extends Command
         }
 
         $this->info("Alertes Jour J terminées : {$sent} envoyées, {$errors} erreurs.");
+
+        if ($errors > 0 && $trigger === 'scheduled') {
+            $adminsManagers = User::role(['admin', 'manager'])->get();
+            Notification::send($adminsManagers, new WhatsAppFailureNotification('day_alert', $errors, $sent + $errors));
+        }
+
         return self::SUCCESS;
     }
 }

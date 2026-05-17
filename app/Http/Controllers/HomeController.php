@@ -15,8 +15,21 @@ class HomeController extends Controller
         $authUser      = Auth::user();
         $isTechnicien  = $authUser->hasRole('agent');
 
-        // Équipe : tous les membres (utile pour tout le monde)
-        $team = User::withCount('missions')
+        $weekStart  = now()->startOfWeek()->toDateString();
+        $weekEnd    = now()->endOfWeek()->toDateString();
+        $monthStart = now()->startOfMonth()->toDateString();
+        $monthEnd   = now()->endOfMonth()->toDateString();
+
+        // Équipe : tous les membres avec compteurs de performances
+        $team = User::withCount([
+                'missions',
+                'missions as completed_week' => fn($q) => $q
+                    ->where('status', 'completed')
+                    ->whereBetween('date', [$weekStart, $weekEnd]),
+                'missions as completed_month' => fn($q) => $q
+                    ->where('status', 'completed')
+                    ->whereBetween('date', [$monthStart, $monthEnd]),
+            ])
             ->with(['missions' => fn($q) => $q->where('status', 'in_progress')
                 ->select('missions.id', 'missions.title')])
             ->get()
@@ -27,6 +40,8 @@ class HomeController extends Controller
                 'avatar'          => $user->avatar,
                 'availability'    => $user->availability,
                 'missions_count'  => $user->missions_count,
+                'completed_week'  => $user->completed_week,
+                'completed_month' => $user->completed_month,
                 'active_mission'  => $user->missions->first(),
                 'computed_status' => $user->missions->isNotEmpty() ? 'deployed' : $user->availability,
             ]);

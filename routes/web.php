@@ -9,6 +9,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\NotificationController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -131,6 +132,10 @@ Route::middleware(['auth', 'verified', '2fa'])->group(function () {
     Route::post('/whatsapp/day-alerts', [WhatsAppController::class, 'triggerDayAlerts'])
         ->middleware('permission:manage users')
         ->name('whatsapp.day-alerts');
+
+    // Notifications
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
 
     // Avatar (upload / suppression depuis la sidebar)
     Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar');

@@ -50,8 +50,9 @@
         >
           <!-- AVATAR + STATUT -->
           <div class="agent-top">
-            <div class="agent-avatar" :style="{ background: getColor(agent.name) }">
-              {{ getInitials(agent.name) }}
+            <div class="agent-avatar" :style="agent.avatar ? {} : { background: getColor(agent.name) }">
+              <img v-if="agent.avatar" :src="'/storage/' + agent.avatar" :alt="agent.name" class="avatar-img" />
+              <template v-else>{{ getInitials(agent.name) }}</template>
             </div>
             <span class="status-badge" :class="'badge-' + agent.computed_status">
               {{ statusLabel(agent.computed_status) }}
@@ -455,6 +456,7 @@ export default {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 20px;
+  align-items: start;
 }
 
 /* CARTE AGENT */
@@ -468,6 +470,8 @@ export default {
   flex-direction: column;
   gap: 14px;
   transition: box-shadow 0.2s;
+  height: 355px;
+  overflow-y: auto;
 }
 .agent-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,.1); }
 
@@ -489,6 +493,12 @@ export default {
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   color: white; font-size: 16px; font-weight: 700;
+  overflow: hidden;
+}
+.avatar-img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 .status-badge {

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Validation\Rules\Password;
@@ -14,8 +15,13 @@ class UserController extends Controller
 {
     public function index()
     {
-        $users = User::with('roles')
-            ->withCount('missions')
+        // Lecture directe en base pour éviter tout problème de cache Spatie
+        $roleByUserId = DB::table('model_has_roles')
+            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->where('model_has_roles.model_type', 'App\\Models\\User')
+            ->pluck('roles.name', 'model_has_roles.model_id');
+
+        $users = User::withCount('missions')
             ->orderBy('name')
             ->get()
             ->map(fn($user) => [
@@ -25,7 +31,7 @@ class UserController extends Controller
                 'phone_number'   => $user->phone_number,
                 'role'           => $user->role,
                 'availability'   => $user->availability,
-                'spatie_role'    => $user->roles->first()?->name ?? 'agent',
+                'spatie_role'    => $roleByUserId[$user->id] ?? 'agent',
                 'missions_count' => $user->missions_count,
                 'is_blocked'     => (bool) $user->is_blocked,
             ]);

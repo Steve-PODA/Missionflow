@@ -42,24 +42,34 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user();
+
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user()?->only(['id', 'name', 'email', 'role', 'avatar', 'availability']),
-                'roles' => $request->user()?->getRoleNames() ?? [],
+                'user' => $user?->only(['id', 'name', 'email', 'role', 'avatar', 'availability']),
+                'roles' => $user?->getRoleNames() ?? [],
                 'can' => [
-                    'view_missions'       => $request->user()?->can('view missions') ?? false,
-                    'create_missions'     => $request->user()?->can('create missions') ?? false,
-                    'edit_missions'       => $request->user()?->can('edit missions') ?? false,
-                    'update_mission_status' => $request->user()?->can('update mission status') ?? false,
-                    'view_personnel'      => $request->user()?->can('view personnel') ?? false,
-                    'manage_personnel'    => $request->user()?->can('manage personnel') ?? false,
-                    'manage_users'        => $request->user()?->can('manage users') ?? false,
+                    'view_missions'         => $user?->can('view missions') ?? false,
+                    'create_missions'       => $user?->can('create missions') ?? false,
+                    'edit_missions'         => $user?->can('edit missions') ?? false,
+                    'update_mission_status' => $user?->can('update mission status') ?? false,
+                    'view_personnel'        => $user?->can('view personnel') ?? false,
+                    'manage_personnel'      => $user?->can('manage personnel') ?? false,
+                    'manage_users'          => $user?->can('manage users') ?? false,
                 ],
             ],
             'flash' => [
                 'success' => $request->session()->get('success'),
                 'error'   => $request->session()->get('error'),
+            ],
+            'notifications' => [
+                'unread_count' => $user?->unreadNotifications()->count() ?? 0,
+                'items' => $user?->unreadNotifications()->latest()->take(10)->get()->map(fn($n) => [
+                    'id'         => $n->id,
+                    'data'       => $n->data,
+                    'created_at' => $n->created_at->diffForHumans(),
+                ])->toArray() ?? [],
             ],
         ];
     }

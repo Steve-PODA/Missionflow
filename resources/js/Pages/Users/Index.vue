@@ -27,7 +27,7 @@
             <tr>
               <th>Agent</th>
               <th>Téléphone</th>
-              <th>Grade / Rôle</th>
+              <th>Grade</th>
               <th>Accès</th>
               <th>Disponibilité</th>
               <th>Missions</th>
@@ -140,8 +140,35 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label>Grade / Intitulé de poste</label>
-              <input v-model="form.role" type="text" class="form-input" placeholder="Ex : Technicien Senior, Chef d'équipe..." />
+              <label>Grade</label>
+              <select v-model="form.role" class="form-input">
+                <option value="">— Sélectionner un grade —</option>
+                <optgroup label="Officiers généraux">
+                  <option>Général de Corps d'Armée</option>
+                  <option>Général de Division</option>
+                  <option>Général de Brigade</option>
+                </optgroup>
+                <optgroup label="Officiers supérieurs">
+                  <option>Colonel</option>
+                  <option>Lieutenant-Colonel</option>
+                  <option>Commandant</option>
+                </optgroup>
+                <optgroup label="Officiers subalternes">
+                  <option>Capitaine</option>
+                  <option>Lieutenant</option>
+                  <option>Sous-Lieutenant</option>
+                  <option>Aspirant</option>
+                </optgroup>
+                <optgroup label="Sous-officiers">
+                  <option>Adjudant-Chef</option>
+                  <option>Adjudant</option>
+                  <option>Maréchal des Logis-Chef</option>
+                  <option>Maréchal des Logis</option>
+                  <option>Brigadier-Chef</option>
+                  <option>Brigadier</option>
+                  <option>Gendarme</option>
+                </optgroup>
+              </select>
             </div>
             <div class="form-group">
               <label>Disponibilité <span class="required">*</span></label>
@@ -273,7 +300,9 @@ export default {
         u.name.toLowerCase().includes(q) ||
         u.email.toLowerCase().includes(q) ||
         (u.phone_number || '').includes(q) ||
-        (u.role || '').toLowerCase().includes(q)
+        (u.role || '').toLowerCase().includes(q) ||
+        (u.spatie_role || '').toLowerCase().includes(q) ||
+        (this.roleLabel(u.spatie_role) || '').toLowerCase().includes(q)
       )
     },
     isValid() {
@@ -356,13 +385,13 @@ export default {
       for (let i = 0; i < (name || '').length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
       return `hsl(${Math.abs(hash) % 360}, 50%, 38%)`
     },
-    roleLabel(r)  { return { admin: 'Administrateur', manager: 'Manager', agent: 'Technicien' }[r] ?? r },
+    roleLabel(r)  { return { admin: 'Administrateur', manager: 'Manager', agent: 'Agent' }[r] ?? r },
     roleIcon(r)   { return { admin: '🛡️', manager: '⚙️', agent: '🔧' }[r] ?? '👤' },
     roleDesc(r)   {
       return {
-        admin:      'Accès total — gestion des utilisateurs incluse',
-        manager:    'Gestion des missions et du personnel',
-        agent: 'Consultation et mise à jour de statut uniquement',
+        admin:   'Accès total — gestion des utilisateurs incluse',
+        manager: 'Gestion des missions et du personnel',
+        agent:   'Consultation et mise à jour de statut uniquement',
       }[r] ?? ''
     },
     availLabel(a) { return { available: 'Disponible', on_leave: 'En congé', unavailable: 'Indisponible' }[a] ?? a },
@@ -451,9 +480,9 @@ export default {
   padding: 3px 10px; border-radius: 20px;
   font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
 }
-.role-admin      { background: #fef3c7; color: #d97706; }
-.role-manager    { background: #eef2ff; color: #4f6fee; }
-.role-agent { background: #f3f4f6; color: #6b7280; }
+.role-admin    { background: #fef3c7; color: #d97706; }
+.role-manager  { background: #eef2ff; color: #4f6fee; }
+.role-agent    { background: #f3f4f6; color: #6b7280; }
 
 .avail-badge {
   padding: 3px 10px; border-radius: 20px;

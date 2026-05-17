@@ -72,9 +72,10 @@
                 type="time"
                 v-model="form.startTime"
                 class="form-input"
-                :class="{ 'input-error': errors.startTime }"
+                :class="{ 'input-error': errors.startTime || timeError }"
               />
-              <span v-if="errors.startTime" class="error-msg">{{ errors.startTime[0] }}</span>
+              <span v-if="timeError" class="error-msg">L'heure de début doit être dans le futur.</span>
+              <span v-else-if="errors.startTime" class="error-msg">{{ errors.startTime[0] }}</span>
             </div>
           </div>
 
@@ -127,8 +128,12 @@
             <label>Personnel affecté ({{ form.selectedTeam.length }}) <span class="required">*</span></label>
             <span v-if="errors.selectedTeam" class="error-msg" style="margin-bottom:8px;display:block;">{{ errors.selectedTeam[0] }}</span>
 
-            <div v-if="hasUnavailableSelected" class="warning-banner">
-              ⚠️ Un ou plusieurs agents sélectionnés ne sont pas disponibles (congé ou indisponible).
+            <div v-if="agentsBlockedByDate.length > 0" class="block-banner">
+              🚫 Agent(s) indisponible(s) à la date sélectionnée :
+              <strong>{{ agentsBlockedByDate.map(m => m.name + (m.return_date ? ' (retour le ' + formatDate(m.return_date) + ')' : '')).join(', ') }}</strong>
+            </div>
+            <div v-else-if="hasUnavailableSelected" class="warning-banner">
+              ⚠️ Un ou plusieurs agents sélectionnés sont actuellement indisponibles. Vérifiez leur date de retour.
             </div>
 
             <div class="team-select">
@@ -259,12 +264,29 @@ export default {
         return m && (m.computed_status === 'on_leave' || m.computed_status === 'unavailable')
       })
     },
+    agentsBlockedByDate() {
+      if (!this.form.date) return []
+      return this.form.selectedTeam
+        .map(id => this.team.find(t => t.id === id))
+        .filter(m => {
+          if (!m) return false
+          if (m.computed_status !== 'on_leave' && m.computed_status !== 'unavailable') return false
+          if (!m.return_date) return true
+          return this.form.date < m.return_date
+        })
+    },
     dateError() {
       return this.form.date && this.form.date < this.today
+    },
+    timeError() {
+      if (this.form.date !== this.today || !this.form.startTime) return false
+      return this.form.startTime <= new Date().toTimeString().slice(0, 5)
     },
     isValid() {
       return (
         !this.dateError &&
+        !this.timeError &&
+        this.agentsBlockedByDate.length === 0 &&
         this.form.title.trim() &&
         this.form.company.trim() &&
         this.form.date &&
@@ -297,6 +319,12 @@ export default {
     },
     availLabel(status) {
       return { available: 'Libre', deployed: 'Déployé', on_leave: 'En congé', unavailable: 'Indispo' }[status] ?? 'Libre'
+    },
+
+    formatDate(d) {
+      if (!d) return '?'
+      const [y, m, day] = d.split('-')
+      return `${day}/${m}/${y}`
     },
 
     toggleMember(id) {
@@ -524,6 +552,16 @@ export default {
   padding: 12px 16px;
   font-size: 14px;
   color: #92400e;
+  margin-bottom: 12px;
+}
+
+.block-banner {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 14px;
+  color: #991b1b;
   margin-bottom: 12px;
 }
 

@@ -271,6 +271,7 @@ export default {
   gap: 12px;
   height: 180px;
   padding-bottom: 4px;
+  overflow-x: auto;
 }
 .bar-col {
   flex: 1;
@@ -371,7 +372,7 @@ export default {
 .dist-col .card:last-child { margin-bottom: 0; }
 
 /* ── TABLE AGENTS ─────────────────────────────────────── */
-.agents-table-wrap { overflow-x: auto; }
+.agents-table-wrap { overflow-x: auto; overflow-y: auto; max-height: 520px; }
 .agents-table {
   width: 100%;
   border-collapse: collapse;
@@ -410,7 +411,7 @@ export default {
 .rate-label { font-size: 12px; font-weight: 700; color: #374151; min-width: 34px; text-align: right; }
 
 /* ── DISTRIBUTIONS ────────────────────────────────────── */
-.dist-list { display: flex; flex-direction: column; gap: 12px; }
+.dist-list { display: flex; flex-direction: column; gap: 12px; max-height: 200px; overflow-y: auto; }
 .dist-item {}
 .dist-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
 .dist-label  { font-size: 13px; font-weight: 500; color: #374151; }
