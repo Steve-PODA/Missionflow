@@ -36,6 +36,7 @@ class Mission extends Model
      * Correspond aux champs de ton formulaire Vue.
      */
     protected $fillable = [
+        'equipe_source_id',
         'title',
         'briefing',
         'company',
@@ -56,6 +57,13 @@ class Mission extends Model
      */
     public function users(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'mission_user');
+        return $this->belongsToMany(User::class, 'mission_user')
+                    ->withPivot('role_dans_mission')
+                    ->withTimestamps();
+    }
+
+    public function equipeSource()
+    {
+        return $this->belongsTo(Equipe::class, 'equipe_source_id');
     }
 }

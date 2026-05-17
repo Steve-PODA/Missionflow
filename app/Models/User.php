@@ -41,6 +41,9 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'peloton_id',
+        'groupe_id',
+        'equipe_id',
         'phone_number',
         'password',
         'role',
@@ -80,6 +83,23 @@ class User extends Authenticatable
 
     public function missions(): BelongsToMany
     {
-        return $this->belongsToMany(Mission::class, 'mission_user');
+        return $this->belongsToMany(Mission::class, 'mission_user')
+                    ->withPivot('role_dans_mission')
+                    ->withTimestamps();
+    }
+
+    public function peloton()
+    {
+        return $this->belongsTo(Peloton::class);
+    }
+
+    public function groupe()
+    {
+        return $this->belongsTo(Groupe::class);
+    }
+
+    public function equipe()
+    {
+        return $this->belongsTo(Equipe::class);
     }
 }

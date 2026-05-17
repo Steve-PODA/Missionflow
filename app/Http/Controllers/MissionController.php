@@ -51,8 +51,11 @@ class MissionController extends Controller
      */
     public function create()
     {
+        $pelotons = \App\Models\Peloton::with(['groupes.equipes'])->get();
+
         return Inertia::render('Missions/MissionCreator', [
-            'team' => $this->getTeamMembers(),
+            'team'     => $this->getTeamMembers(),
+            'pelotons' => $pelotons,
         ]);
     }
 
@@ -63,41 +66,49 @@ class MissionController extends Controller
     {
         // 1. Validation rigoureuse des données provenant de Vue
         $validated = $request->validate([
-            'title'        => 'required|string|max:255',
-            'briefing'     => 'nullable|string',
-            'company'      => 'required|string|max:255',
-            'date'         => 'required|date|after_or_equal:today',
-            'startTime'    => 'required|date_format:H:i',
-            'duration'     => 'required|numeric|in:0.5,1,2,4,8',
-            'priority'     => 'required|in:low,medium,high,urgent',
-            'location'     => 'required|string',
-            'selectedTeam' => 'required|array|min:1',
+            'title'          => 'required|string|max:255',
+            'briefing'       => 'nullable|string',
+            'company'        => 'required|string|max:255',
+            'date'           => 'required|date|after_or_equal:today',
+            'startTime'      => 'required|date_format:H:i',
+            'duration'       => 'required|numeric|in:0.5,1,2,4,8',
+            'priority'       => 'required|in:low,medium,high,urgent',
+            'location'       => 'required|string',
+            'equipeSourceId' => 'required|exists:equipes,id',
+            'chefMissionId'  => 'required|exists:users,id',
+            'selectedTeam'   => 'required|array|min:1',
             'selectedTeam.*' => 'exists:users,id',
-            'clientName'   => 'required|string',
-            'clientEmail'  => 'nullable|email',
-            'clientPhone'  => 'required|string',
+            'clientName'     => 'required|string',
+            'clientEmail'    => 'nullable|email',
+            'clientPhone'    => 'required|string',
         ], [
             'date.after_or_equal' => 'La date de la mission ne peut pas être dans le passé.',
         ]);
 
         $mission = Mission::create([
-            'title'        => $validated['title'],
-            'briefing'     => $validated['briefing'] ?? null,
-            'company'      => $validated['company'],
-            'date'         => $validated['date'],
-            'start_time'   => $validated['startTime'],
-            'duration'     => $validated['duration'],
-            'priority'     => $validated['priority'],
-            'location'     => $validated['location'],
-            'client_name'  => $validated['clientName'],
-            'client_email' => $validated['clientEmail'] ?? null,
-            'client_phone' => $validated['clientPhone'],
-            'status'       => 'pending',
+            'title'            => $validated['title'],
+            'briefing'         => $validated['briefing'] ?? null,
+            'company'          => $validated['company'],
+            'date'             => $validated['date'],
+            'start_time'       => $validated['startTime'],
+            'duration'         => $validated['duration'],
+            'priority'         => $validated['priority'],
+            'location'         => $validated['location'],
+            'client_name'      => $validated['clientName'],
+            'client_email'     => $validated['clientEmail'] ?? null,
+            'client_phone'     => $validated['clientPhone'],
+            'status'           => 'pending',
+            'equipe_source_id' => $validated['equipeSourceId'],
         ]);
 
         // 3. Liaison avec l'équipe (Table pivot mission_user)
-        // La méthode sync() prend un tableau d'IDs et s'occupe de tout
-        $mission->users()->sync($validated['selectedTeam']);
+        $syncData = [];
+        foreach ($validated['selectedTeam'] as $userId) {
+            $syncData[$userId] = [
+                'role_dans_mission' => ($userId == $validated['chefMissionId']) ? 'chef_mission' : 'membre'
+            ];
+        }
+        $mission->users()->sync($syncData);
 
         // 4. Retourner vers l'index avec un message
         return Redirect::route('missions.index')->with('success', 'Opération déployée avec succès.');
@@ -242,6 +253,9 @@ class MissionController extends Controller
                 'availability'    => $user->availability,
                 'phone_number'    => $user->phone_number,
                 'email'           => $user->email,
+                'peloton_id'      => $user->peloton_id,
+                'groupe_id'       => $user->groupe_id,
+                'equipe_id'       => $user->equipe_id,
                 'active_mission'  => $user->missions->first()?->only(['id', 'title']),
                 'computed_status' => $user->missions->isNotEmpty() ? 'deployed' : $user->availability,
                 'missions_count'  => $user->missions->count(),
