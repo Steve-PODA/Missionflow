@@ -26,6 +26,35 @@
         </div>
       </div>
 
+      <!-- FILTRES ET TRI -->
+      <div class="filters-row" style="margin-bottom: 20px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; background: white; padding: 16px; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.06);">
+        <div style="display: flex; gap: 8px; flex: 1; flex-wrap: wrap; align-items: center;">
+          <select v-model="filter.peloton_id" class="form-input" style="padding: 6px 12px; font-size: 13px; max-width: 180px; width: auto; border: 1.5px solid #e5e7eb; border-radius: 8px; font-family: inherit; color: #1a1f2e; background: white;" @change="filter.groupe_id = null; filter.equipe_id = null">
+            <option :value="null">Tous les pelotons</option>
+            <option v-for="p in pelotons" :key="p.id" :value="p.id">{{ p.nom }}</option>
+          </select>
+          <select v-model="filter.groupe_id" class="form-input" style="padding: 6px 12px; font-size: 13px; max-width: 180px; width: auto; border: 1.5px solid #e5e7eb; border-radius: 8px; font-family: inherit; color: #1a1f2e; background: white;" :disabled="!filter.peloton_id" @change="filter.equipe_id = null">
+            <option :value="null">Tous les groupes</option>
+            <option v-for="g in availableFilterGroupes" :key="g.id" :value="g.id">{{ g.nom }}</option>
+          </select>
+          <select v-model="filter.equipe_id" class="form-input" style="padding: 6px 12px; font-size: 13px; max-width: 180px; width: auto; border: 1.5px solid #e5e7eb; border-radius: 8px; font-family: inherit; color: #1a1f2e; background: white;" :disabled="!filter.groupe_id">
+            <option :value="null">Toutes les équipes</option>
+            <option v-for="e in availableFilterEquipes" :key="e.id" :value="e.id">{{ e.nom }}</option>
+          </select>
+          <button v-if="filter.peloton_id || filter.groupe_id || filter.equipe_id" @click="resetFilters" class="btn-cancel" style="padding: 6px 12px; font-size: 12px; border-radius: 8px; margin: 0; background: #f3f4f6; border: none; cursor: pointer; color: #6b7280; font-weight: 600; font-family: inherit;">✕ Réinitialiser</button>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 13px; font-weight: 600; color: #64748b; white-space: nowrap;">Trier par :</span>
+          <select v-model="sortBy" class="form-input" style="padding: 6px 12px; font-size: 13px; width: 180px; border: 1.5px solid #e5e7eb; border-radius: 8px; font-family: inherit; color: #1a1f2e; background: white;">
+            <option value="status">Statut opérationnel</option>
+            <option value="name">Nom (A-Z)</option>
+            <option value="affectation">Structure (Peloton > Groupe)</option>
+            <option value="role">Grade / Rôle</option>
+            <option value="missions">Missions effectuées</option>
+          </select>
+        </div>
+      </div>
+
       <!-- FILTRES -->
       <div class="filter-tabs">
         <button
@@ -62,6 +91,14 @@
           <div class="agent-info">
             <h3 class="agent-name">{{ agent.name }}</h3>
             <p class="agent-rank">{{ agent.role }}</p>
+            <div class="agent-unit" v-if="agent.peloton || agent.groupe || agent.equipe">
+              <span class="unit-badge peloton" v-if="agent.peloton">{{ agent.peloton.nom }}</span>
+              <span class="unit-badge groupe" v-if="agent.groupe">{{ agent.groupe.nom }}</span>
+              <span class="unit-badge equipe" v-if="agent.equipe">{{ agent.equipe.nom }}</span>
+            </div>
+            <div class="agent-unit" v-else>
+              <span class="unit-badge none">Non assigné</span>
+            </div>
           </div>
 
           <!-- MISSION ACTIVE -->
@@ -205,6 +242,7 @@ export default {
 
   props: {
     personnel: { type: Array, default: () => [] },
+    pelotons:  { type: Array, default: () => [] },
   },
 
   data() {
@@ -219,15 +257,48 @@ export default {
       ],
       leaveDraft: { agentId: null, duration: '', unit: 'days' },
       unavailabilityDraft: { agentId: null, reason: '', duration: '', unit: 'days' },
+      filter: {
+        peloton_id: null,
+        groupe_id:  null,
+        equipe_id:  null,
+      },
+      sortBy: 'status',
     }
   },
 
   computed: {
     sortedPersonnel() {
-      const order = { available: 0, deployed: 1, leave_expired: 2, on_leave: 3, unavailable: 4 }
-      return [...this.personnel].sort((a, b) =>
-        (order[a.computed_status] ?? 9) - (order[b.computed_status] ?? 9)
-      )
+      const result = [...this.personnel]
+      result.sort((a, b) => {
+        if (this.sortBy === 'status') {
+          const order = { available: 0, deployed: 1, leave_expired: 2, on_leave: 3, unavailable: 4 }
+          return (order[a.computed_status] ?? 9) - (order[b.computed_status] ?? 9)
+        }
+        if (this.sortBy === 'name') {
+          return a.name.localeCompare(b.name)
+        }
+        if (this.sortBy === 'role') {
+          return (a.role || '').localeCompare(b.role || '')
+        }
+        if (this.sortBy === 'missions') {
+          return b.missions_count - a.missions_count
+        }
+        if (this.sortBy === 'affectation') {
+          const pelA = a.peloton?.nom ?? ''
+          const pelB = b.peloton?.nom ?? ''
+          if (pelA !== pelB) return pelA.localeCompare(pelB)
+
+          const grpA = a.groupe?.nom ?? ''
+          const grpB = b.groupe?.nom ?? ''
+          if (grpA !== grpB) return grpA.localeCompare(grpB)
+
+          const eqA = a.equipe?.nom ?? ''
+          const eqB = b.equipe?.nom ?? ''
+          return eqA.localeCompare(eqB)
+        }
+        return 0
+      })
+      return result
     },
     filters() {
       return [
@@ -252,7 +323,38 @@ export default {
         const q = this.search.toLowerCase()
         list = list.filter(p => p.name.toLowerCase().includes(q) || p.role?.toLowerCase().includes(q))
       }
+
+      if (this.filter.peloton_id && this.filter.peloton_id !== 'null') {
+        list = list.filter(p => {
+          const id = p.peloton_id ?? p.peloton?.id
+          return id && String(id) === String(this.filter.peloton_id)
+        })
+      }
+      if (this.filter.groupe_id && this.filter.groupe_id !== 'null') {
+        list = list.filter(p => {
+          const id = p.groupe_id ?? p.groupe?.id
+          return id && String(id) === String(this.filter.groupe_id)
+        })
+      }
+      if (this.filter.equipe_id && this.filter.equipe_id !== 'null') {
+        list = list.filter(p => {
+          const id = p.equipe_id ?? p.equipe?.id
+          return id && String(id) === String(this.filter.equipe_id)
+        })
+      }
+
       return list
+    },
+    availableFilterGroupes() {
+      if (!this.filter.peloton_id || this.filter.peloton_id === 'null') return []
+      const peloton = this.pelotons.find(p => String(p.id) === String(this.filter.peloton_id))
+      return peloton ? peloton.groupes : []
+    },
+    availableFilterEquipes() {
+      if (!this.filter.groupe_id || this.filter.groupe_id === 'null') return []
+      const groupes = this.availableFilterGroupes
+      const groupe = groupes.find(g => String(g.id) === String(this.filter.groupe_id))
+      return groupe ? groupe.equipes : []
     },
     counts() {
       return {
@@ -267,6 +369,11 @@ export default {
   },
 
   methods: {
+    resetFilters() {
+      this.filter.peloton_id = null
+      this.filter.groupe_id = null
+      this.filter.equipe_id = null
+    },
     getInitials(name) {
       return name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() ?? '??'
     },
@@ -505,6 +612,27 @@ export default {
 /* INFOS */
 .agent-name { font-size: 16px; font-weight: 700; color: #1a1f2e; margin: 0 0 4px; }
 .agent-rank { font-size: 12px; color: #6b7280; margin: 0; }
+
+/* UNIT BADGES */
+.agent-unit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+.unit-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #f3f4f6;
+  color: #4b5563;
+  border: 1px solid #e5e7eb;
+}
+.unit-badge.peloton { background: #e0e7ff; color: #3730a3; border-color: #c7d2fe; }
+.unit-badge.groupe { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
+.unit-badge.equipe { background: #fce7f3; color: #9d174d; border-color: #fbcfe8; }
+.unit-badge.none { background: #f3f4f6; color: #9ca3af; border-style: dashed; }
 
 /* MISSION ACTIVE */
 .active-mission {

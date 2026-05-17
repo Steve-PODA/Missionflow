@@ -16,6 +16,7 @@ class UserController extends Controller
     {
         $users = User::with('roles')
             ->withCount('missions')
+            ->with(['peloton', 'groupe', 'equipe'])
             ->orderBy('name')
             ->get()
             ->map(fn($user) => [
@@ -28,13 +29,21 @@ class UserController extends Controller
                 'spatie_role'    => $user->roles->first()?->name ?? 'agent',
                 'missions_count' => $user->missions_count,
                 'is_blocked'     => (bool) $user->is_blocked,
+                'peloton_id'     => $user->peloton_id,
+                'groupe_id'      => $user->groupe_id,
+                'equipe_id'      => $user->equipe_id,
+                'peloton'        => $user->peloton,
+                'groupe'         => $user->groupe,
+                'equipe'         => $user->equipe,
             ]);
 
         $roles = Role::orderBy('name')->pluck('name');
+        $pelotons = \App\Models\Peloton::with(['groupes.equipes'])->get();
 
         return Inertia::render('Users/Index', [
             'users' => $users,
             'roles' => $roles,
+            'pelotons' => $pelotons,
         ]);
     }
 
@@ -48,6 +57,9 @@ class UserController extends Controller
             'role'         => 'nullable|string|max:100',
             'spatie_role'  => 'required|exists:roles,name',
             'availability' => 'required|in:available,on_leave,unavailable',
+            'peloton_id'   => 'nullable|exists:pelotons,id',
+            'groupe_id'    => 'nullable|exists:groupes,id',
+            'equipe_id'    => 'nullable|exists:equipes,id',
         ]);
 
         $user = User::create([
@@ -57,6 +69,9 @@ class UserController extends Controller
             'password'     => Hash::make($validated['password']),
             'role'         => $validated['role'] ?? null,
             'availability' => $validated['availability'],
+            'peloton_id'   => $validated['peloton_id'] ?? null,
+            'groupe_id'    => $validated['groupe_id'] ?? null,
+            'equipe_id'    => $validated['equipe_id'] ?? null,
         ]);
 
         $user->assignRole($validated['spatie_role']);
@@ -74,6 +89,9 @@ class UserController extends Controller
             'role'         => 'nullable|string|max:100',
             'spatie_role'  => 'required|exists:roles,name',
             'availability' => 'required|in:available,on_leave,unavailable',
+            'peloton_id'   => 'nullable|exists:pelotons,id',
+            'groupe_id'    => 'nullable|exists:groupes,id',
+            'equipe_id'    => 'nullable|exists:equipes,id',
         ]);
 
         $data = [
@@ -82,6 +100,9 @@ class UserController extends Controller
             'phone_number' => $validated['phone_number'] ?? null,
             'role'         => $validated['role'] ?? null,
             'availability' => $validated['availability'],
+            'peloton_id'   => $validated['peloton_id'] ?? null,
+            'groupe_id'    => $validated['groupe_id'] ?? null,
+            'equipe_id'    => $validated['equipe_id'] ?? null,
         ];
 
         if (!empty($validated['password'])) {

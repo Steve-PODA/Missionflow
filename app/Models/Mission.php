@@ -58,7 +58,7 @@ class Mission extends Model
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'mission_user')
-                    ->withPivot('role_dans_mission')
+                    ->withPivot('role_dans_mission', 'peloton_name', 'groupe_name', 'equipe_name')
                     ->withTimestamps();
     }
 

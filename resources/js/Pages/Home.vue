@@ -115,7 +115,7 @@
       </div>
 
       <MissionDetail v-if="detailMission" :mission="detailMission" @close="detailMission = null" @edit="openEditor" />
-      <MissionCreator v-if="creatorOpen" :team-members="team" @close="creatorOpen = false" />
+      <MissionCreator v-if="creatorOpen" :team-members="team" :pelotons="pelotons" @close="creatorOpen = false" />
 
 
     </div>
@@ -140,6 +140,7 @@ export default {
     stats:       { type: Object, default: () => ({ total: 0, in_progress: 0, completed: 0, successRate: '0%' }) },
     nextMission: { type: Object, default: null },
     overdue:     { type: Array,  default: () => [] },
+    pelotons:    { type: Array,  default: () => [] },
   },
 
   data() {

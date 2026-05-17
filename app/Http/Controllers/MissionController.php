@@ -39,10 +39,12 @@ class MissionController extends Controller
 
         $missions = $missionsQuery->get();
         $team     = $this->getTeamMembers();
+        $pelotons = \App\Models\Peloton::with(['groupes.equipes'])->get();
 
         return Inertia::render('Missions/Index', [
             'missions' => $missions,
             'team'     => $team,
+            'pelotons' => $pelotons,
         ]);
     }
 
@@ -102,10 +104,14 @@ class MissionController extends Controller
         ]);
 
         // 3. Liaison avec l'équipe (Table pivot mission_user)
+        $users = User::with(['peloton', 'groupe', 'equipe'])->whereIn('id', $validated['selectedTeam'])->get();
         $syncData = [];
-        foreach ($validated['selectedTeam'] as $userId) {
-            $syncData[$userId] = [
-                'role_dans_mission' => ($userId == $validated['chefMissionId']) ? 'chef_mission' : 'membre'
+        foreach ($users as $u) {
+            $syncData[$u->id] = [
+                'role_dans_mission' => ($u->id == $validated['chefMissionId']) ? 'chef_mission' : 'membre',
+                'peloton_name'      => $u->peloton?->nom,
+                'groupe_name'       => $u->groupe?->nom,
+                'equipe_name'       => $u->equipe?->nom,
             ];
         }
         $mission->users()->sync($syncData);
@@ -125,10 +131,12 @@ class MissionController extends Controller
         }
 
         $mission->load('users');
+        $pelotons = \App\Models\Peloton::with(['groupes.equipes'])->get();
 
         return Inertia::render('Missions/MissionEditor', [
-            'mission' => $mission,
-            'team'    => $this->getTeamMembers(),
+            'mission'  => $mission,
+            'team'     => $this->getTeamMembers(),
+            'pelotons' => $pelotons,
         ]);
     }
 
@@ -171,7 +179,19 @@ class MissionController extends Controller
             'client_phone' => $validated['clientPhone'],
         ]);
 
-        $mission->users()->sync($validated['selectedTeam']);
+        $users = User::with(['peloton', 'groupe', 'equipe'])->whereIn('id', $validated['selectedTeam'])->get();
+        $syncData = [];
+        foreach ($users as $u) {
+            // Keep the previous role if we are just updating
+            $existingPivot = $mission->users->find($u->id)?->pivot;
+            $syncData[$u->id] = [
+                'role_dans_mission' => $existingPivot ? $existingPivot->role_dans_mission : 'membre',
+                'peloton_name'      => $u->peloton?->nom,
+                'groupe_name'       => $u->groupe?->nom,
+                'equipe_name'       => $u->equipe?->nom,
+            ];
+        }
+        $mission->users()->sync($syncData);
 
         return Redirect::route('missions.index')->with('success', 'Opération mise à jour.');
     }
@@ -242,8 +262,12 @@ class MissionController extends Controller
 
     private function getTeamMembers()
     {
-        return User::with(['missions' => fn($q) => $q->where('status', 'in_progress')
-                ->select('missions.id', 'missions.title')])
+        return User::with([
+                'missions' => fn($q) => $q->where('status', 'in_progress')->select('missions.id', 'missions.title'),
+                'peloton',
+                'groupe',
+                'equipe'
+            ])
             ->get()
             ->map(fn($user) => [
                 'id'              => $user->id,
@@ -256,6 +280,9 @@ class MissionController extends Controller
                 'peloton_id'      => $user->peloton_id,
                 'groupe_id'       => $user->groupe_id,
                 'equipe_id'       => $user->equipe_id,
+                'peloton'         => $user->peloton,
+                'groupe'          => $user->groupe,
+                'equipe'          => $user->equipe,
                 'active_mission'  => $user->missions->first()?->only(['id', 'title']),
                 'computed_status' => $user->missions->isNotEmpty() ? 'deployed' : $user->availability,
                 'missions_count'  => $user->missions->count(),

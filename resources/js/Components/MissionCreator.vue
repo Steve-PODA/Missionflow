@@ -114,6 +114,22 @@
           ⚠️ Un ou plusieurs agents sélectionnés ne sont pas disponibles.
         </div>
 
+        <div class="team-filters" style="margin-bottom: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
+          <input type="text" v-model="searchQuery" class="form-input" placeholder="Rechercher un agent..." style="padding: 6px; font-size: 12px; flex: 1; min-width: 150px;" />
+          <select v-model="filter.peloton_id" class="form-input" style="padding: 6px; font-size: 12px; flex: 1; min-width: 120px;" @change="filter.groupe_id = null; filter.equipe_id = null">
+            <option :value="null">Tous les pelotons</option>
+            <option v-for="p in pelotons" :key="p.id" :value="p.id">{{ p.nom }}</option>
+          </select>
+          <select v-model="filter.groupe_id" class="form-input" style="padding: 6px; font-size: 12px; flex: 1; min-width: 120px;" :disabled="!filter.peloton_id" @change="filter.equipe_id = null">
+            <option :value="null">Tous les groupes</option>
+            <option v-for="g in availableGroupes" :key="g.id" :value="g.id">{{ g.nom }}</option>
+          </select>
+          <select v-model="filter.equipe_id" class="form-input" style="padding: 6px; font-size: 12px; flex: 1; min-width: 120px;" :disabled="!filter.groupe_id">
+            <option :value="null">Toutes les équipes</option>
+            <option v-for="e in availableEquipes" :key="e.id" :value="e.id">{{ e.nom }}</option>
+          </select>
+        </div>
+
         <div class="team-select">
           <div
             v-for="member in sortedTeamMembers"
@@ -127,7 +143,20 @@
             </div>
             <div class="member-info">
               <span class="member-name">{{ member.name }}</span>
-              <span class="member-role">{{ member.role }}</span>
+              <span class="member-role">
+                {{ member.role }}
+                <template v-if="member.peloton || member.groupe || member.equipe">
+                  <br/>
+                  <span class="unit-text">
+                    <span v-if="member.peloton">{{ member.peloton.nom }}</span>
+                    <span v-if="member.groupe"> > {{ member.groupe.nom }}</span>
+                    <span v-if="member.equipe"> > {{ member.equipe.nom }}</span>
+                  </span>
+                </template>
+                <template v-else>
+                  <br/><span class="unit-text">Non assigné</span>
+                </template>
+              </span>
               <span v-if="member.active_mission" class="member-op">⚔️ {{ member.active_mission.title }}</span>
             </div>
             <span class="avail-badge" :class="'avail-' + (member.computed_status || 'available')">
@@ -244,7 +273,8 @@ export default {
   name: 'MissionCreator',
 
   props: {
-    teamMembers: { type: Array, default: () => [] }
+    teamMembers: { type: Array, default: () => [] },
+    pelotons: { type: Array, default: () => [] },
   },
 
   setup() {
@@ -259,6 +289,12 @@ export default {
       leaderId:  null,
       autoFilled: false,
       today: new Date().toLocaleDateString('sv-SE'),
+      searchQuery: '',
+      filter: {
+        peloton_id: null,
+        groupe_id: null,
+        equipe_id:  null,
+      },
       form: {
         title:        '',
         briefing:     '',
@@ -283,6 +319,22 @@ export default {
   },
 
   watch: {
+    'filter.equipe_id'(newVal) {
+      if (newVal) {
+        const equipeMembers = this.teamMembers.filter(m => m.equipe_id == newVal)
+        const idsToAdd = equipeMembers.map(m => m.id)
+        // Add to current selection without duplicates
+        const newSelection = new Set([...this.form.selectedTeam, ...idsToAdd])
+        this.form.selectedTeam = Array.from(newSelection)
+
+        const leader = equipeMembers.find(m => m.role === 'Chef d\'équipe' || m.role === 'chef_equipe')
+        if (leader) {
+          this.$nextTick(() => {
+            this.selectLeader(leader.id)
+          })
+        }
+      }
+    },
     'form.selectedTeam'(newVal) {
       if (newVal.length === 1) {
         this.leaderId = newVal[0]
@@ -301,11 +353,36 @@ export default {
   },
 
   computed: {
+    availableGroupes() {
+      if (!this.filter.peloton_id) return []
+      const peloton = this.pelotons.find(p => p.id == this.filter.peloton_id)
+      return peloton ? peloton.groupes : []
+    },
+    availableEquipes() {
+      if (!this.filter.groupe_id) return []
+      const groupes = this.availableGroupes
+      const groupe = groupes.find(g => g.id == this.filter.groupe_id)
+      return groupe ? groupe.equipes : []
+    },
     sortedTeamMembers() {
       const order = { available: 0, deployed: 1, on_leave: 2, unavailable: 3 }
-      return [...this.teamMembers].sort((a, b) =>
-        (order[a.computed_status] ?? 0) - (order[b.computed_status] ?? 0)
-      )
+      return [...this.teamMembers]
+        .filter(m => {
+          if (this.isSelected(m.id)) return true;
+
+          if (this.searchQuery) {
+            const q = this.searchQuery.toLowerCase();
+            return m.name.toLowerCase().includes(q) || (m.role && m.role.toLowerCase().includes(q));
+          }
+
+          if (this.filter.peloton_id && m.peloton_id != this.filter.peloton_id) return false;
+          if (this.filter.groupe_id && m.groupe_id != this.filter.groupe_id) return false;
+          if (this.filter.equipe_id && m.equipe_id != this.filter.equipe_id) return false;
+          return true;
+        })
+        .sort((a, b) =>
+          (order[a.computed_status] ?? 0) - (order[b.computed_status] ?? 0)
+        )
     },
     hasUnavailableSelected() {
       return this.form.selectedTeam.some(id => {
@@ -421,7 +498,7 @@ export default {
   border-radius: 16px;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
   width: 90%;
-  max-width: 580px;
+  max-width: 700px;
   max-height: 90vh;
   overflow-y: auto;
   padding: 28px;
@@ -625,7 +702,8 @@ export default {
 
 .member-info { flex: 1; display: flex; flex-direction: column; }
 .member-name { font-size: 14px; font-weight: 600; color: #1a1f2e; }
-.member-role { font-size: 12px; color: #6b7280; }
+.member-role { font-size: 12px; color: #6b7280; line-height: 1.3; }
+.unit-text { font-size: 10px; color: #9ca3af; font-weight: 500; }
 
 .check-icon {
   width: 22px; height: 22px;

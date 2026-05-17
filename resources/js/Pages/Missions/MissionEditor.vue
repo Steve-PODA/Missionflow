@@ -125,6 +125,22 @@
               ⚠️ Un ou plusieurs agents sélectionnés ne sont pas disponibles.
             </div>
 
+            <div class="team-filters" style="margin-bottom: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
+              <input type="text" v-model="searchQuery" class="form-input" placeholder="Rechercher un agent..." style="padding: 6px; font-size: 12px; flex: 1; min-width: 150px;" />
+              <select v-model="filter.peloton_id" class="form-input" style="padding: 6px; font-size: 12px; flex: 1; min-width: 120px;" @change="filter.groupe_id = null; filter.equipe_id = null">
+                <option :value="null">Tous les pelotons</option>
+                <option v-for="p in pelotons" :key="p.id" :value="p.id">{{ p.nom }}</option>
+              </select>
+              <select v-model="filter.groupe_id" class="form-input" style="padding: 6px; font-size: 12px; flex: 1; min-width: 120px;" :disabled="!filter.peloton_id" @change="filter.equipe_id = null">
+                <option :value="null">Tous les groupes</option>
+                <option v-for="g in availableGroupes" :key="g.id" :value="g.id">{{ g.nom }}</option>
+              </select>
+              <select v-model="filter.equipe_id" class="form-input" style="padding: 6px; font-size: 12px; flex: 1; min-width: 120px;" :disabled="!filter.groupe_id">
+                <option :value="null">Toutes les équipes</option>
+                <option v-for="e in availableEquipes" :key="e.id" :value="e.id">{{ e.nom }}</option>
+              </select>
+            </div>
+
             <div class="team-select">
               <div
                 v-for="member in sortedTeamMembers"
@@ -243,8 +259,9 @@ export default {
   components: { AppLayout, Link },
 
   props: {
-    mission: { type: Object, required: true },
-    team:    { type: Array,  default: () => [] },
+    mission:  { type: Object, required: true },
+    team:     { type: Array,  default: () => [] },
+    pelotons: { type: Array,  default: () => [] },
   },
 
   setup() {
@@ -255,12 +272,27 @@ export default {
   data() {
     const selectedTeam = (this.mission.users ?? []).map(u => u.id)
     const today = new Date().toLocaleDateString('sv-SE')
+    
+    let initialLeader = null
+    const chefPivot = (this.mission.users ?? []).find(u => u.pivot && u.pivot.role_dans_mission === 'chef_mission')
+    if (chefPivot) {
+      initialLeader = chefPivot.id
+    } else if (selectedTeam.length === 1) {
+      initialLeader = selectedTeam[0]
+    }
+
     return {
       isSaving:     false,
       errors:       {},
-      leaderId:     selectedTeam.length === 1 ? selectedTeam[0] : null,
+      leaderId:     initialLeader,
       autoFilled:   false,
       today,
+      searchQuery:  '',
+      filter: {
+        peloton_id: null,
+        groupe_id:  null,
+        equipe_id:  null,
+      },
       originalDate: this.mission.date ?? '',
       form: {
         title:        this.mission.title        ?? '',
@@ -286,6 +318,22 @@ export default {
   },
 
   watch: {
+    'filter.equipe_id'(newVal) {
+      if (newVal) {
+        const equipeMembers = this.team.filter(m => m.equipe_id == newVal)
+        const idsToAdd = equipeMembers.map(m => m.id)
+        
+        const newSelection = new Set([...this.form.selectedTeam, ...idsToAdd])
+        this.form.selectedTeam = Array.from(newSelection)
+
+        const leader = equipeMembers.find(m => m.role === 'Chef d\'équipe' || m.role === 'chef_equipe')
+        if (leader) {
+          this.$nextTick(() => {
+            this.selectLeader(leader.id)
+          })
+        }
+      }
+    },
     'form.selectedTeam'(newVal) {
       if (newVal.length === 1) {
         this.leaderId = newVal[0]
@@ -303,11 +351,36 @@ export default {
   },
 
   computed: {
+    availableGroupes() {
+      if (!this.filter.peloton_id) return []
+      const peloton = this.pelotons.find(p => p.id == this.filter.peloton_id)
+      return peloton ? peloton.groupes : []
+    },
+    availableEquipes() {
+      if (!this.filter.groupe_id) return []
+      const groupes = this.availableGroupes
+      const groupe = groupes.find(g => g.id == this.filter.groupe_id)
+      return groupe ? groupe.equipes : []
+    },
     sortedTeamMembers() {
       const order = { available: 0, deployed: 1, on_leave: 2, unavailable: 3 }
-      return [...this.team].sort((a, b) =>
-        (order[a.computed_status] ?? 0) - (order[b.computed_status] ?? 0)
-      )
+      return [...this.team]
+        .filter(m => {
+          if (this.isSelected(m.id)) return true;
+
+          if (this.searchQuery) {
+            const q = this.searchQuery.toLowerCase();
+            return m.name.toLowerCase().includes(q) || (m.role && m.role.toLowerCase().includes(q));
+          }
+
+          if (this.filter.peloton_id && m.peloton_id != this.filter.peloton_id) return false;
+          if (this.filter.groupe_id && m.groupe_id != this.filter.groupe_id) return false;
+          if (this.filter.equipe_id && m.equipe_id != this.filter.equipe_id) return false;
+          return true;
+        })
+        .sort((a, b) =>
+          (order[a.computed_status] ?? 0) - (order[b.computed_status] ?? 0)
+        )
     },
     hasUnavailableSelected() {
       return this.form.selectedTeam.some(id => {
