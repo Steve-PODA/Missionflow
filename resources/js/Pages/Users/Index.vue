@@ -20,6 +20,35 @@
         </div>
       </div>
 
+      <!-- FILTRES ET TRI -->
+      <div class="filters-row" style="margin-bottom: 20px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; background: white; padding: 16px; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.06);">
+        <div style="display: flex; gap: 8px; flex: 1; flex-wrap: wrap; align-items: center;">
+          <select v-model="filter.peloton_id" class="form-input" style="padding: 6px 12px; font-size: 13px; max-width: 180px; width: auto;" @change="filter.groupe_id = null; filter.equipe_id = null">
+            <option :value="null">Tous les pelotons</option>
+            <option v-for="p in pelotons" :key="p.id" :value="p.id">{{ p.nom }}</option>
+          </select>
+          <select v-model="filter.groupe_id" class="form-input" style="padding: 6px 12px; font-size: 13px; max-width: 180px; width: auto;" :disabled="!filter.peloton_id" @change="filter.equipe_id = null">
+            <option :value="null">Tous les groupes</option>
+            <option v-for="g in availableFilterGroupes" :key="g.id" :value="g.id">{{ g.nom }}</option>
+          </select>
+          <select v-model="filter.equipe_id" class="form-input" style="padding: 6px 12px; font-size: 13px; max-width: 180px; width: auto;" :disabled="!filter.groupe_id">
+            <option :value="null">Toutes les équipes</option>
+            <option v-for="e in availableFilterEquipes" :key="e.id" :value="e.id">{{ e.nom }}</option>
+          </select>
+          <button v-if="filter.peloton_id || filter.groupe_id || filter.equipe_id" @click="resetFilters" class="btn-cancel" style="padding: 6px 12px; font-size: 12px; border-radius: 8px; margin: 0;">✕ Réinitialiser</button>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 13px; font-weight: 600; color: #64748b; white-space: nowrap;">Trier par :</span>
+          <select v-model="sortBy" class="form-input" style="padding: 6px 12px; font-size: 13px; width: 180px;">
+            <option value="name">Nom (A-Z)</option>
+            <option value="affectation">Structure (Peloton > Groupe)</option>
+            <option value="role">Grade / Rôle</option>
+            <option value="availability">Disponibilité</option>
+            <option value="missions">Missions effectuées</option>
+          </select>
+        </div>
+      </div>
+
       <!-- TABLEAU -->
       <div class="table-wrapper">
         <table class="users-table">
@@ -27,7 +56,8 @@
             <tr>
               <th>Agent</th>
               <th>Téléphone</th>
-              <th>Grade</th>
+              <th>Grade / Rôle</th>
+              <th>Affectation</th>
               <th>Accès</th>
               <th>Disponibilité</th>
               <th>Missions</th>
@@ -47,6 +77,14 @@
               </td>
               <td class="cell-phone">{{ user.phone_number || '—' }}</td>
               <td>{{ user.role || '—' }}</td>
+              <td>
+                <div v-if="user.peloton" class="affectation-info">
+                  <span class="pel-tag">{{ user.peloton.nom }}</span>
+                  <span v-if="user.groupe" class="grp-tag"> › {{ user.groupe.nom }}</span>
+                  <span v-if="user.equipe" class="eq-tag"> › {{ user.equipe.nom }}</span>
+                </div>
+                <span v-else style="color: #9ca3af; font-style: italic;">Non affecté</span>
+              </td>
               <td>
                 <span class="role-badge" :class="'role-' + user.spatie_role">{{ roleLabel(user.spatie_role) }}</span>
               </td>
@@ -140,35 +178,8 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label>Grade</label>
-              <select v-model="form.role" class="form-input">
-                <option value="">— Sélectionner un grade —</option>
-                <optgroup label="Officiers généraux">
-                  <option>Général de Corps d'Armée</option>
-                  <option>Général de Division</option>
-                  <option>Général de Brigade</option>
-                </optgroup>
-                <optgroup label="Officiers supérieurs">
-                  <option>Colonel</option>
-                  <option>Lieutenant-Colonel</option>
-                  <option>Commandant</option>
-                </optgroup>
-                <optgroup label="Officiers subalternes">
-                  <option>Capitaine</option>
-                  <option>Lieutenant</option>
-                  <option>Sous-Lieutenant</option>
-                  <option>Aspirant</option>
-                </optgroup>
-                <optgroup label="Sous-officiers">
-                  <option>Adjudant-Chef</option>
-                  <option>Adjudant</option>
-                  <option>Maréchal des Logis-Chef</option>
-                  <option>Maréchal des Logis</option>
-                  <option>Brigadier-Chef</option>
-                  <option>Brigadier</option>
-                  <option>Gendarme</option>
-                </optgroup>
-              </select>
+              <label>Grade / Intitulé de poste</label>
+              <input v-model="form.role" type="text" class="form-input" placeholder="Ex : Technicien Senior, Chef d'équipe..." />
             </div>
             <div class="form-group">
               <label>Disponibilité <span class="required">*</span></label>
@@ -176,6 +187,33 @@
                 <option value="available">Disponible</option>
                 <option value="on_leave">En congé</option>
                 <option value="unavailable">Indisponible</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Peloton X</label>
+              <select v-model="form.peloton_id" class="form-input" @change="form.groupe_id = null; form.equipe_id = null">
+                <option :value="null">-- Aucun --</option>
+                <option v-for="p in pelotons" :key="p.id" :value="p.id">{{ p.nom }}</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Groupe</label>
+              <select v-model="form.groupe_id" class="form-input" :disabled="!form.peloton_id" @change="form.equipe_id = null">
+                <option :value="null">-- Aucun --</option>
+                <option v-for="g in availableGroupes" :key="g.id" :value="g.id">{{ g.nom }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Équipe</label>
+              <select v-model="form.equipe_id" class="form-input" :disabled="!form.groupe_id">
+                <option :value="null">-- Aucune --</option>
+                <option v-for="e in availableEquipes" :key="e.id" :value="e.id">{{ e.nom }}</option>
               </select>
             </div>
           </div>
@@ -266,6 +304,7 @@ export default {
   props: {
     users: { type: Array, default: () => [] },
     roles: { type: Array, default: () => [] },
+    pelotons: { type: Array, default: () => [] },
   },
 
   data() {
@@ -276,6 +315,12 @@ export default {
       blockingUser: null,
       isSaving:     false,
       errors:       {},
+      filter: {
+        peloton_id: null,
+        groupe_id:  null,
+        equipe_id:  null,
+      },
+      sortBy: 'name',
       search:       '',
       form: {
         name:         '',
@@ -285,6 +330,9 @@ export default {
         role:         '',
         spatie_role:  'agent',
         availability: 'available',
+        peloton_id:   null,
+        groupe_id:    null,
+        equipe_id:    null,
       },
     }
   },
@@ -294,16 +342,83 @@ export default {
       return usePage().props.auth.user.id
     },
     filteredUsers() {
+      let result = [...this.users]
+
+      // 1. Recherche par mot-clé
       const q = this.search.trim().toLowerCase()
-      if (!q) return this.users
-      return this.users.filter(u =>
-        u.name.toLowerCase().includes(q) ||
-        u.email.toLowerCase().includes(q) ||
-        (u.phone_number || '').includes(q) ||
-        (u.role || '').toLowerCase().includes(q) ||
-        (u.spatie_role || '').toLowerCase().includes(q) ||
-        (this.roleLabel(u.spatie_role) || '').toLowerCase().includes(q)
-      )
+      if (q) {
+        result = result.filter(u =>
+          u.name.toLowerCase().includes(q) ||
+          u.email.toLowerCase().includes(q) ||
+          (u.phone_number || '').includes(q) ||
+          (u.role || '').toLowerCase().includes(q)
+        )
+      }
+
+      // 2. Filtres hiérarchiques
+      if (this.filter.peloton_id) {
+        result = result.filter(u => u.peloton_id == this.filter.peloton_id)
+      }
+      if (this.filter.groupe_id) {
+        result = result.filter(u => u.groupe_id == this.filter.groupe_id)
+      }
+      if (this.filter.equipe_id) {
+        result = result.filter(u => u.equipe_id == this.filter.equipe_id)
+      }
+
+      // 3. Tri
+      result.sort((a, b) => {
+        if (this.sortBy === 'name') {
+          return a.name.localeCompare(b.name)
+        }
+        if (this.sortBy === 'role') {
+          return (a.role || '').localeCompare(b.role || '')
+        }
+        if (this.sortBy === 'missions') {
+          return b.missions_count - a.missions_count
+        }
+        if (this.sortBy === 'availability') {
+          const order = { available: 0, on_leave: 1, unavailable: 2 }
+          return (order[a.availability] ?? 0) - (order[b.availability] ?? 0)
+        }
+        if (this.sortBy === 'affectation') {
+          const pelA = a.peloton?.nom ?? ''
+          const pelB = b.peloton?.nom ?? ''
+          if (pelA !== pelB) return pelA.localeCompare(pelB)
+
+          const grpA = a.groupe?.nom ?? ''
+          const grpB = b.groupe?.nom ?? ''
+          if (grpA !== grpB) return grpA.localeCompare(grpB)
+
+          const eqA = a.equipe?.nom ?? ''
+          const eqB = b.equipe?.nom ?? ''
+          return eqA.localeCompare(eqB)
+        }
+        return 0
+      })
+
+      return result
+    },
+    availableFilterGroupes() {
+      if (!this.filter.peloton_id) return []
+      const peloton = this.pelotons.find(p => p.id == this.filter.peloton_id)
+      return peloton ? peloton.groupes : []
+    },
+    availableFilterEquipes() {
+      if (!this.filter.groupe_id) return []
+      const groupes = this.availableFilterGroupes
+      const groupe = groupes.find(g => g.id == this.filter.groupe_id)
+      return groupe ? groupe.equipes : []
+    },
+    availableGroupes() {
+      if (!this.form.peloton_id) return []
+      const peloton = this.pelotons.find(p => p.id === this.form.peloton_id)
+      return peloton ? peloton.groupes : []
+    },
+    availableEquipes() {
+      if (!this.form.groupe_id) return []
+      const groupe = this.availableGroupes.find(g => g.id === this.form.groupe_id)
+      return groupe ? groupe.equipes : []
     },
     isValid() {
       return (
@@ -316,10 +431,15 @@ export default {
   },
 
   methods: {
+    resetFilters() {
+      this.filter.peloton_id = null
+      this.filter.groupe_id = null
+      this.filter.equipe_id = null
+    },
     openCreate() {
       this.editingUser = null
       this.errors      = {}
-      this.form        = { name: '', email: '', phone_number: '', password: '', role: '', spatie_role: 'agent', availability: 'available' }
+      this.form        = { name: '', email: '', phone_number: '', password: '', role: '', spatie_role: 'agent', availability: 'available', peloton_id: null, groupe_id: null, equipe_id: null }
       this.showModal   = true
     },
     openEdit(user) {
@@ -333,6 +453,9 @@ export default {
         role:         user.role ?? '',
         spatie_role:  user.spatie_role,
         availability: user.availability ?? 'available',
+        peloton_id:   user.peloton_id ?? null,
+        groupe_id:    user.groupe_id ?? null,
+        equipe_id:    user.equipe_id ?? null,
       }
       this.showModal = true
     },
@@ -385,13 +508,13 @@ export default {
       for (let i = 0; i < (name || '').length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
       return `hsl(${Math.abs(hash) % 360}, 50%, 38%)`
     },
-    roleLabel(r)  { return { admin: 'Administrateur', manager: 'Manager', agent: 'Agent' }[r] ?? r },
+    roleLabel(r)  { return { admin: 'Administrateur', manager: 'Manager', agent: 'Technicien' }[r] ?? r },
     roleIcon(r)   { return { admin: '🛡️', manager: '⚙️', agent: '🔧' }[r] ?? '👤' },
     roleDesc(r)   {
       return {
-        admin:   'Accès total — gestion des utilisateurs incluse',
-        manager: 'Gestion des missions et du personnel',
-        agent:   'Consultation et mise à jour de statut uniquement',
+        admin:      'Accès total — gestion des utilisateurs incluse',
+        manager:    'Gestion des missions et du personnel',
+        agent: 'Consultation et mise à jour de statut uniquement',
       }[r] ?? ''
     },
     availLabel(a) { return { available: 'Disponible', on_leave: 'En congé', unavailable: 'Indisponible' }[a] ?? a },
@@ -480,9 +603,9 @@ export default {
   padding: 3px 10px; border-radius: 20px;
   font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
 }
-.role-admin    { background: #fef3c7; color: #d97706; }
-.role-manager  { background: #eef2ff; color: #4f6fee; }
-.role-agent    { background: #f3f4f6; color: #6b7280; }
+.role-admin      { background: #fef3c7; color: #d97706; }
+.role-manager    { background: #eef2ff; color: #4f6fee; }
+.role-agent { background: #f3f4f6; color: #6b7280; }
 
 .avail-badge {
   padding: 3px 10px; border-radius: 20px;
@@ -604,5 +727,39 @@ export default {
   .header-right { flex-direction: column; align-items: stretch; gap: 8px; }
   .search-input { width: 100%; }
   .form-row { grid-template-columns: 1fr; }
+}
+
+.affectation-info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #4b5563;
+  flex-wrap: wrap;
+}
+.pel-tag {
+  font-weight: 700;
+  font-size: 10px;
+  color: #1e3a8a;
+  background: #dbeafe;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+.grp-tag {
+  color: #1f2937;
+  font-weight: 600;
+}
+.eq-tag {
+  color: #4b5563;
+  font-style: italic;
+}
+
+.filters-row select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: none !important;
+  padding-right: 12px !important;
 }
 </style>

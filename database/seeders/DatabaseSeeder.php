@@ -4,6 +4,9 @@ namespace Database\Seeders;
 
 use App\Models\User;
 use App\Models\Mission;
+use App\Models\Peloton;
+use App\Models\Groupe;
+use App\Models\Equipe;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -14,93 +17,159 @@ class DatabaseSeeder extends Seeder
         // 1. Créer les rôles et permissions d'abord
         $this->call(RolesAndPermissionsSeeder::class);
 
-        // 2. Commandant en chef → rôle admin
+        // Noms pour la génération
+        $chefPelotonNames = ['Capitaine Renard', 'Capitaine Dubois'];
+        $chefGroupeNames  = ['Lieutenant Martin', 'Lieutenant Leroy', 'Lieutenant Bernard', 'Lieutenant Richard'];
+        $chefEquipeNames  = ['Sergent Petit', 'Sergent Durand', 'Sergent Moreau', 'Sergent Simon', 'Sergent Laurent', 'Sergent Michel', 'Sergent Garcia', 'Sergent David'];
+        $equipierNames    = [
+            'Caporal Roux', 'Soldat Blanc', 'Soldat Lefebvre', 'Caporal Mercier', 
+            'Soldat Girard', 'Caporal Blanc', 'Soldat Fournier', 'Soldat Morel',
+            'Caporal Robin', 'Soldat Girardot', 'Soldat Clement', 'Soldat Rousseau',
+            'Caporal Lemaire', 'Soldat Lucas', 'Soldat Francois', 'Soldat Perrin'
+        ];
+
+        $cgIndex = 0;
+        $ceIndex = 0;
+        $eqIndex = 0;
+
+        // 2. Création de l'arborescence (2 Pelotons, 2 Groupes par peloton, 2 Équipes par groupe)
+        $pelotonsData = ['Peloton Alpha', 'Peloton Bravo'];
+        $equipesCreated = collect();
+
+        foreach ($pelotonsData as $pIndex => $pName) {
+            $peloton = Peloton::create(['nom' => $pName]);
+
+            // Chef de peloton (Compel)
+            $compel = User::create([
+                'name'              => $chefPelotonNames[$pIndex],
+                'email'             => 'compel_' . strtolower(explode(' ', $pName)[1]) . '@exemple.com',
+                'password'          => Hash::make('password'),
+                'email_verified_at' => now(),
+                'role'              => 'Chef de peloton',
+                'peloton_id'        => $peloton->id,
+                'availability'      => 'available',
+            ]);
+            $compel->assignRole('manager');
+
+            for ($i = 1; $i <= 2; $i++) {
+                $groupe = Groupe::create([
+                    'nom'        => 'Groupe ' . $i . ' (' . explode(' ', $pName)[1] . ')',
+                    'peloton_id' => $peloton->id
+                ]);
+
+                // Chef de groupe
+                $chefGroupe = User::create([
+                    'name'              => $chefGroupeNames[$cgIndex++],
+                    'email'             => 'chefgroupe_' . $groupe->id . '@exemple.com',
+                    'password'          => Hash::make('password'),
+                    'email_verified_at' => now(),
+                    'role'              => 'Chef de groupe',
+                    'peloton_id'        => $peloton->id,
+                    'groupe_id'         => $groupe->id,
+                    'availability'      => 'available',
+                ]);
+                $chefGroupe->assignRole('manager');
+
+                for ($j = 1; $j <= 2; $j++) {
+                    $equipe = Equipe::create([
+                        'nom'       => 'Équipe ' . $i . '.' . $j . ' (' . explode(' ', $pName)[1] . ')',
+                        'groupe_id' => $groupe->id
+                    ]);
+                    $equipesCreated->push($equipe);
+
+                    // Chef d'équipe
+                    $chefEquipe = User::create([
+                        'name'              => $chefEquipeNames[$ceIndex++],
+                        'email'             => 'chefequipe_' . $equipe->id . '@exemple.com',
+                        'password'          => Hash::make('password'),
+                        'email_verified_at' => now(),
+                        'role'              => 'Chef d\'équipe',
+                        'peloton_id'        => $peloton->id,
+                        'groupe_id'         => $groupe->id,
+                        'equipe_id'         => $equipe->id,
+                        'availability'      => 'available',
+                    ]);
+                    $chefEquipe->assignRole('agent');
+
+                    // 2 équipiers par équipe
+                    for ($k = 1; $k <= 2; $k++) {
+                        $isUnavailable = ($equipe->id == 1 && $k == 1); 
+                        
+                        $equipier = User::create([
+                            'name'              => $equipierNames[$eqIndex++],
+                            'email'             => 'equipier_' . $equipe->id . '_' . $k . '@exemple.com',
+                            'password'          => Hash::make('password'),
+                            'email_verified_at' => now(),
+                            'role'              => 'Équipier',
+                            'peloton_id'        => $peloton->id,
+                            'groupe_id'         => $groupe->id,
+                            'equipe_id'         => $equipe->id,
+                            'availability'      => $isUnavailable ? 'unavailable' : 'available',
+                        ]);
+                        $equipier->assignRole('agent');
+                    }
+                }
+            }
+        }
+
+        // 3. Direction (Non affiliée)
         $commandant = User::create([
             'name'               => 'Général PIT',
             'email'              => 'test@example.com',
             'password'           => Hash::make('password'),
             'email_verified_at'  => now(),
-            'role'               => 'Commandant en chef',
-            'avatar'             => 'https://ui-avatars.com/api/?name=General+Moreau&background=1e1f2e&color=fff',
+            'role'               => 'Commandant',
+            'availability'       => 'available',
+            'avatar'             => 'https://ui-avatars.com/api/?name=General+PIT&background=1e1f2e&color=fff',
         ]);
         $commandant->assignRole('admin');
 
-        // 3. Personnel de terrain
-        $personnel = [
-            ['name' => 'Colonel Leclerc',   'email' => 'leclerc@exemple.com',   'role' => 'Officier de renseignement', 'spatie_role' => 'manager'],
-            ['name' => 'Capitaine Renard',  'email' => 'renard@exemple.com',    'role' => 'Chef d\'unité',            'spatie_role' => 'manager'],
-            ['name' => 'Lieutenant Dubois', 'email' => 'dubois@exemple.com',    'role' => 'Agent de terrain',         'spatie_role' => 'agent'],
-            ['name' => 'Sergent Martin',    'email' => 'martin@exemple.com',    'role' => 'Agent de terrain',         'spatie_role' => 'agent'],
-            ['name' => 'Caporal Petit',     'email' => 'petit@exemple.com',     'role' => 'Agent de terrain',         'spatie_role' => 'agent'],
-        ];
+        $adjoint = User::create([
+            'name'               => 'Colonel Leclerc',
+            'email'              => 'leclerc@exemple.com',
+            'password'           => Hash::make('password'),
+            'email_verified_at'  => now(),
+            'role'               => 'Adjoint',
+            'availability'       => 'available',
+            'avatar'             => 'https://ui-avatars.com/api/?name=Colonel+Leclerc&background=4f6fee&color=fff',
+        ]);
+        $adjoint->assignRole('manager');
 
-        $agents = collect();
-        foreach ($personnel as $p) {
-            $user = User::create([
-                'name'              => $p['name'],
-                'email'             => $p['email'],
-                'password'          => Hash::make('password'),
-                'email_verified_at' => now(),
-                'role'              => $p['role'],
-                'avatar'            => 'https://ui-avatars.com/api/?name=' . urlencode($p['name']) . '&background=4f6fee&color=fff',
-            ]);
-            $user->assignRole($p['spatie_role']);
-            $agents->push($user);
-        }
+        // 4. Missions de test
+        $equipeSource = $equipesCreated->first();
 
-        $allPersonnel = $agents->concat([$commandant]);
+        $mission1 = Mission::create([
+            'title'            => 'Opération Tonnerre',
+            'briefing'         => 'Neutralisation d\'une cellule hostile identifiée dans le secteur Nord. Intervention rapide requise avec équipement lourd.',
+            'company'          => 'État-Major — Division Alpha',
+            'date'             => now()->addDays(2)->format('Y-m-d'),
+            'start_time'       => '05:30',
+            'duration'         => 4,
+            'priority'         => 'urgent',
+            'location'         => 'Secteur Nord — Zone 7',
+            'client_name'      => 'Général Moreau',
+            'client_phone'     => '+33 1 00 00 00 01',
+            'client_email'     => 'moreau@etat-major.mil',
+            'status'           => 'pending',
+            'equipe_source_id' => $equipeSource->id,
+        ]);
 
-        // Missions de test
-        $missions = [
-            [
-                'title'        => 'Opération Tonnerre',
-                'briefing'     => 'Neutralisation d\'une cellule hostile dans le secteur nord. Approche discrète requise. Extraction prévue par la route Delta.',
-                'company'      => 'État-Major — Division Alpha',
-                'date'         => now()->addDays(2)->format('Y-m-d'),
-                'start_time'   => '05:30',
-                'duration'     => 4,
-                'priority'     => 'urgent',
-                'location'     => 'Secteur Nord — Zone 7',
-                'client_name'  => 'Général Moreau',
-                'client_phone' => '+33 1 00 00 00 01',
-                'client_email' => 'moreau@etat-major.mil',
-                'status'       => 'pending',
-            ],
-            [
-                'title'        => 'Opération Fantôme',
-                'briefing'     => 'Collecte de renseignements sur les mouvements ennemis. Infiltration en zone urbaine. Aucun contact direct autorisé.',
-                'company'      => 'DGSE — Bureau des opérations',
-                'date'         => now()->format('Y-m-d'),
-                'start_time'   => '22:00',
-                'duration'     => 8,
-                'priority'     => 'high',
-                'location'     => 'Zone Urbaine — Secteur Bravo',
-                'client_name'  => 'Colonel Leclerc',
-                'client_phone' => '+33 1 00 00 00 02',
-                'client_email' => 'leclerc@dgse.mil',
-                'status'       => 'in_progress',
-            ],
-            [
-                'title'        => 'Opération Bouclier',
-                'briefing'     => 'Escorte et protection d\'un convoi stratégique entre la base principale et le poste avancé Charlie.',
-                'company'      => 'Commandement Logistique',
-                'date'         => now()->subDays(1)->format('Y-m-d'),
-                'start_time'   => '08:00',
-                'duration'     => 2,
-                'priority'     => 'medium',
-                'location'     => 'Route Nationale — Axe Charlie',
-                'client_name'  => 'Capitaine Renard',
-                'client_phone' => '+33 1 00 00 00 03',
-                'client_email' => 'renard@logistique.mil',
-                'status'       => 'completed',
-            ],
-        ];
+        // Attach membres à la mission 1 avec les infos historiques d'unités
+        $membresMission = User::with(['peloton', 'groupe', 'equipe'])
+            ->where('equipe_id', $equipeSource->id)
+            ->where('availability', 'available')
+            ->get();
 
-        foreach ($missions as $data) {
-            $mission = Mission::create($data);
-            $mission->users()->attach(
-                $allPersonnel->random(rand(1, 3))->pluck('id')
-            );
+        if ($membresMission->count() > 0) {
+            $chefId = $membresMission->firstWhere('role', 'Chef d\'équipe')?->id ?? $membresMission->first()->id;
+            foreach ($membresMission as $membre) {
+                $mission1->users()->attach($membre->id, [
+                    'role_dans_mission' => ($membre->id == $chefId) ? 'chef_mission' : 'membre',
+                    'peloton_name'      => $membre->peloton?->nom,
+                    'groupe_name'       => $membre->groupe?->nom,
+                    'equipe_name'       => $membre->equipe?->nom,
+                ]);
+            }
         }
     }
 }

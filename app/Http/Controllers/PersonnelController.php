@@ -27,8 +27,13 @@ class PersonnelController extends Controller
             });
 
         $personnel = User::withCount('missions')
-            ->with(['missions' => fn($q) => $q->where('status', 'in_progress')
-                ->select('missions.id', 'missions.title', 'missions.location', 'missions.priority')])
+            ->with([
+                'missions' => fn($q) => $q->where('status', 'in_progress')
+                    ->select('missions.id', 'missions.title', 'missions.location', 'missions.priority'),
+                'peloton',
+                'groupe',
+                'equipe'
+            ])
             ->get()
             ->map(fn($user) => [
                 'id'               => $user->id,
@@ -46,10 +51,19 @@ class PersonnelController extends Controller
                 'missions_count'         => $user->missions_count,
                 'active_mission'   => $user->missions->first(),
                 'computed_status'  => $user->missions->isNotEmpty() ? 'deployed' : $user->availability,
+                'peloton_id'       => $user->peloton_id,
+                'groupe_id'        => $user->groupe_id,
+                'equipe_id'        => $user->equipe_id,
+                'peloton'          => $user->peloton,
+                'groupe'           => $user->groupe,
+                'equipe'           => $user->equipe,
             ]);
+
+        $pelotons = \App\Models\Peloton::with(['groupes.equipes'])->get();
 
         return Inertia::render('Personnel/Index', [
             'personnel' => $personnel,
+            'pelotons'  => $pelotons,
         ]);
     }
 

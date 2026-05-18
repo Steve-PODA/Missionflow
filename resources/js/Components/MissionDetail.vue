@@ -62,7 +62,17 @@
             </div>
             <div class="member-info">
               <span class="member-name">{{ user.name }}</span>
-              <span class="member-role">{{ user.role ?? '' }}</span>
+              <span class="member-role">
+                {{ user.role ?? '' }}
+                <template v-if="user.pivot?.peloton_name || user.pivot?.groupe_name || user.pivot?.equipe_name">
+                  <br/>
+                  <span class="unit-text">
+                    <span v-if="user.pivot?.peloton_name">{{ user.pivot.peloton_name }}</span>
+                    <span v-if="user.pivot?.groupe_name"> > {{ user.pivot.groupe_name }}</span>
+                    <span v-if="user.pivot?.equipe_name"> > {{ user.pivot.equipe_name }}</span>
+                  </span>
+                </template>
+              </span>
             </div>
           </div>
         </div>
@@ -338,7 +348,8 @@ export default {
 }
 .member-info { display: flex; flex-direction: column; }
 .member-name { font-size: 14px; font-weight: 600; color: #1a1f2e; }
-.member-role { font-size: 12px; color: #9ca3af; }
+.member-role { font-size: 12px; color: #9ca3af; line-height: 1.3; }
+.unit-text { font-size: 10px; color: #9ca3af; font-weight: 500; }
 .empty-note  { font-size: 13px; color: #9ca3af; font-style: italic; }
 
 /* CONTACT */

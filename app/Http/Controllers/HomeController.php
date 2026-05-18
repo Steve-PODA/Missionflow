@@ -15,23 +15,12 @@ class HomeController extends Controller
         $authUser      = Auth::user();
         $isTechnicien  = $authUser->hasRole('agent');
 
-        $weekStart  = now()->startOfWeek()->toDateString();
-        $weekEnd    = now()->endOfWeek()->toDateString();
-        $monthStart = now()->startOfMonth()->toDateString();
-        $monthEnd   = now()->endOfMonth()->toDateString();
-
-        // Équipe : tous les membres avec compteurs de performances
-        $team = User::withCount([
-                'missions',
-                'missions as completed_week' => fn($q) => $q
-                    ->where('status', 'completed')
-                    ->whereBetween('date', [$weekStart, $weekEnd]),
-                'missions as completed_month' => fn($q) => $q
-                    ->where('status', 'completed')
-                    ->whereBetween('date', [$monthStart, $monthEnd]),
+        // Équipe : tous les membres (utile pour tout le monde)
+        $team = User::withCount('missions')
+            ->with([
+                'missions' => fn($q) => $q->where('status', 'in_progress')->select('missions.id', 'missions.title'),
+                'peloton', 'groupe', 'equipe'
             ])
-            ->with(['missions' => fn($q) => $q->where('status', 'in_progress')
-                ->select('missions.id', 'missions.title')])
             ->get()
             ->map(fn($user) => [
                 'id'              => $user->id,
@@ -39,9 +28,15 @@ class HomeController extends Controller
                 'role'            => $user->role,
                 'avatar'          => $user->avatar,
                 'availability'    => $user->availability,
+                'phone_number'    => $user->phone_number,
+                'email'           => $user->email,
+                'peloton_id'      => $user->peloton_id,
+                'groupe_id'       => $user->groupe_id,
+                'equipe_id'       => $user->equipe_id,
+                'peloton'         => $user->peloton,
+                'groupe'          => $user->groupe,
+                'equipe'          => $user->equipe,
                 'missions_count'  => $user->missions_count,
-                'completed_week'  => $user->completed_week,
-                'completed_month' => $user->completed_month,
                 'active_mission'  => $user->missions->first(),
                 'computed_status' => $user->missions->isNotEmpty() ? 'deployed' : $user->availability,
             ]);
@@ -111,12 +106,15 @@ class HomeController extends Controller
 
         $overdue = $overdueQuery->get();
 
+        $pelotons = \App\Models\Peloton::with(['groupes.equipes'])->get();
+
         return Inertia::render('Home', [
             'team'        => $team,
             'missions'    => $missions,
             'stats'       => $stats,
             'nextMission' => $nextMission,
             'overdue'     => $overdue,
+            'pelotons'    => $pelotons,
         ]);
     }
 }

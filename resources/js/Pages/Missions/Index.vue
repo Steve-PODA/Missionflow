@@ -18,7 +18,7 @@
 
       <MissionDetail  v-if="detailMission" :mission="detailMission" @close="detailMission = null" @edit="openEditor" />
       <MissionList :missions="missions" :all-team-members="team" @detail="detailMission = $event" @edit="openEditor" />
-      <MissionCreator v-if="creatorOpen" :team-members="team" @close="creatorOpen = false" />
+      <MissionCreator v-if="creatorOpen" :team-members="team" :pelotons="pelotons" @close="creatorOpen = false" />
 
     </div>
   </AppLayout>
@@ -37,6 +37,7 @@ export default {
   props: {
     missions: { type: Array, default: () => [] },
     team:     { type: Array, default: () => [] },
+    pelotons: { type: Array, default: () => [] },
   },
   data() {
     return {
