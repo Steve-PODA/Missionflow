@@ -20,7 +20,7 @@ class SearchController extends Controller
         $authUser     = auth()->user();
         $isTechnicien = $authUser->hasRole('agent');
 
-        $missionsQuery = Mission::with('users')
+        $missionsQuery = Mission::with('personnel')
             ->where(fn($query) => $query
                 ->where('title',    'like', "%{$q}%")
                 ->orWhere('company',  'like', "%{$q}%")
@@ -29,7 +29,12 @@ class SearchController extends Controller
             ->limit(6);
 
         if ($isTechnicien) {
-            $missionsQuery->whereHas('users', fn($q2) => $q2->where('users.id', $authUser->id));
+            $myPersonnel = $authUser->personnel;
+            if ($myPersonnel) {
+                $missionsQuery->whereHas('personnel', fn($q2) => $q2->where('personnel.id', $myPersonnel->id));
+            } else {
+                $missionsQuery->whereRaw('0 = 1');
+            }
         }
 
         $missions = $missionsQuery->get()->map(fn($m) => [
@@ -43,18 +48,19 @@ class SearchController extends Controller
 
         $personnel = [];
         if ($authUser->can('view personnel')) {
-            $personnel = User::where(fn($query) => $query
-                ->where('name', 'like', "%{$q}%")
-                ->orWhere('role', 'like', "%{$q}%")
-                ->orWhere('email', 'like', "%{$q}%")
+            $personnel = \App\Models\Personnel::where(fn($query) => $query
+                ->where('name',    'like', "%{$q}%")
+                ->orWhere('grade',   'like', "%{$q}%")
+                ->orWhere('fonction','like', "%{$q}%")
+                ->orWhere('numero_incorporation', 'like', "%{$q}%")
             )
             ->limit(4)
             ->get()
-            ->map(fn($u) => [
-                'id'    => $u->id,
-                'name'  => $u->name,
-                'role'  => $u->role,
-                'email' => $u->email,
+            ->map(fn($p) => [
+                'id'    => $p->id,
+                'name'  => $p->name,
+                'role'  => trim(($p->grade ?? '') . ' ' . ($p->fonction ?? '')),
+                'email' => null,
             ]);
         }
 

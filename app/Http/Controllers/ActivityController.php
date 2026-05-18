@@ -30,13 +30,17 @@ class ActivityController extends Controller
             'causer'      => $a->causer ? [
                 'id'   => $a->causer->id,
                 'name' => $a->causer->name,
-                'role' => $a->causer->role,
+                'role' => $a->causer->roles->first()?->name ?? 'agent',
             ] : null,
             'properties'  => $a->properties,
             'created_at'  => $a->created_at->format('Y-m-d H:i:s'),
         ]);
 
-        $users = \App\Models\User::orderBy('name')->get(['id', 'name', 'role']);
+        $users = \App\Models\User::with('roles')->orderBy('name')->get()->map(fn($u) => [
+            'id'   => $u->id,
+            'name' => $u->name,
+            'role' => $u->roles->first()?->name ?? 'agent',
+        ]);
 
         return Inertia::render('Activity/Index', [
             'activities' => $activities,
