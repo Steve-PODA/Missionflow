@@ -54,16 +54,16 @@
 
       <!-- ÉQUIPE -->
       <div class="section">
-        <h3 class="section-title">Équipe affectée ({{ mission.users?.length ?? 0 }})</h3>
-        <div v-if="mission.users?.length" class="team-list">
-          <div v-for="user in mission.users" :key="user.id" class="team-member">
+        <h3 class="section-title">Équipe affectée ({{ mission.personnel?.length ?? 0 }})</h3>
+        <div v-if="mission.personnel?.length" class="team-list">
+          <div v-for="user in mission.personnel" :key="user.id" class="team-member">
             <div class="member-avatar" :style="{ background: getColor(user.name) }">
               {{ getInitials(user.name) }}
             </div>
             <div class="member-info">
               <span class="member-name">{{ user.name }}</span>
               <span class="member-role">
-                {{ user.role ?? '' }}
+                {{ user.grade ?? '' }}
                 <template v-if="user.pivot?.peloton_name || user.pivot?.groupe_name || user.pivot?.equipe_name">
                   <br/>
                   <span class="unit-text">

@@ -22,6 +22,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'view personnel',
             'manage personnel',
             'manage users',
+            'view chevaux',
+            'manage chevaux',
         ];
 
         foreach ($permissions as $permission) {
@@ -43,6 +45,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'update mission status',
             'view personnel',
             'manage personnel',
+            'view chevaux',
+            'manage chevaux',
         ]);
 
         // Agent : consultation et mise à jour de statut uniquement
@@ -51,6 +55,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'view missions',
             'update mission status',
             'view personnel',
+            'view chevaux',
         ]);
     }
 }

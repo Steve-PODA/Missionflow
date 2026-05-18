@@ -10,6 +10,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ChevauxController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -26,11 +27,6 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/2fa/setup',   [\App\Http\Controllers\Auth\TwoFactorController::class, 'showSetup'])->name('2fa.setup');
     Route::post('/2fa/setup',  [\App\Http\Controllers\Auth\TwoFactorController::class, 'confirmSetup'])->name('2fa.setup.confirm');
 
-    // Beacon envoyé par le navigateur à la fermeture de l'onglet
-    Route::post('/auth/session-close', function (\Illuminate\Http\Request $request) {
-        $request->session()->put('closing_at', now()->timestamp);
-        return response()->noContent();
-    })->name('session.close');
 });
 
 // TOUTES les routes ci-dessous demandent d'être connecté
@@ -79,11 +75,23 @@ Route::middleware(['auth', 'verified', '2fa'])->group(function () {
         ->name('personnel.index');
 
     // Personnel — écriture : admin, manager uniquement
-    Route::patch('/personnel/{user}/availability', [PersonnelController::class, 'updateAvailability'])
+    Route::post('/personnel', [PersonnelController::class, 'store'])
+        ->middleware('permission:manage personnel')
+        ->name('personnel.store');
+
+    Route::put('/personnel/{personnel}', [PersonnelController::class, 'update'])
+        ->middleware('permission:manage personnel')
+        ->name('personnel.update');
+
+    Route::delete('/personnel/{personnel}', [PersonnelController::class, 'destroy'])
+        ->middleware('permission:manage personnel')
+        ->name('personnel.destroy');
+
+    Route::patch('/personnel/{personnel}/availability', [PersonnelController::class, 'updateAvailability'])
         ->middleware('permission:manage personnel')
         ->name('personnel.availability');
 
-    Route::patch('/personnel/{user}/confirm-return', [PersonnelController::class, 'confirmReturn'])
+    Route::patch('/personnel/{personnel}/confirm-return', [PersonnelController::class, 'confirmReturn'])
         ->middleware('permission:manage personnel')
         ->name('personnel.confirmReturn');
 
@@ -132,6 +140,20 @@ Route::middleware(['auth', 'verified', '2fa'])->group(function () {
     Route::post('/whatsapp/day-alerts', [WhatsAppController::class, 'triggerDayAlerts'])
         ->middleware('permission:manage users')
         ->name('whatsapp.day-alerts');
+
+    // Chevaux
+    Route::get('/chevaux', [ChevauxController::class, 'index'])
+        ->middleware('permission:view chevaux')
+        ->name('chevaux.index');
+    Route::post('/chevaux', [ChevauxController::class, 'store'])
+        ->middleware('permission:manage chevaux')
+        ->name('chevaux.store');
+    Route::put('/chevaux/{cheval}', [ChevauxController::class, 'update'])
+        ->middleware('permission:manage chevaux')
+        ->name('chevaux.update');
+    Route::delete('/chevaux/{cheval}', [ChevauxController::class, 'destroy'])
+        ->middleware('permission:manage chevaux')
+        ->name('chevaux.destroy');
 
     // Notifications
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');

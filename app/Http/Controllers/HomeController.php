@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Mission;
+use App\Models\Personnel;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -15,39 +16,38 @@ class HomeController extends Controller
         $authUser      = Auth::user();
         $isTechnicien  = $authUser->hasRole('agent');
 
-        // Équipe : tous les membres (utile pour tout le monde)
-        $team = User::withCount('missions')
+        // Équipe : tous les membres personnel
+        $team = Personnel::withCount('missions')
             ->with([
                 'missions' => fn($q) => $q->where('status', 'in_progress')->select('missions.id', 'missions.title'),
-                'peloton', 'groupe', 'equipe'
+                'peloton', 'groupe', 'equipe',
             ])
             ->get()
-            ->map(fn($user) => [
-                'id'              => $user->id,
-                'name'            => $user->name,
-                'role'            => $user->role,
-                'avatar'          => $user->avatar,
-                'availability'    => $user->availability,
-                'phone_number'    => $user->phone_number,
-                'email'           => $user->email,
-                'peloton_id'      => $user->peloton_id,
-                'groupe_id'       => $user->groupe_id,
-                'equipe_id'       => $user->equipe_id,
-                'peloton'         => $user->peloton,
-                'groupe'          => $user->groupe,
-                'equipe'          => $user->equipe,
-                'missions_count'  => $user->missions_count,
-                'active_mission'  => $user->missions->first(),
-                'computed_status' => $user->missions->isNotEmpty() ? 'deployed' : $user->availability,
+            ->map(fn($p) => [
+                'id'              => $p->id,
+                'name'            => $p->name,
+                'grade'           => $p->grade,
+                'avatar'          => $p->avatar,
+                'availability'    => $p->availability,
+                'phone_number'    => $p->phone_number,
+                'peloton_id'      => $p->peloton_id,
+                'groupe_id'       => $p->groupe_id,
+                'equipe_id'       => $p->equipe_id,
+                'peloton'         => $p->peloton,
+                'groupe'          => $p->groupe,
+                'equipe'          => $p->equipe,
+                'missions_count'  => $p->missions_count,
+                'active_mission'  => $p->missions->first(),
+                'computed_status' => $p->missions->isNotEmpty() ? 'deployed' : $p->availability,
             ]);
 
         // Missions : filtrées pour les techniciens
-        $missionsQuery = Mission::with('users')
+        $missionsQuery = Mission::with('personnel')
             ->orderBy('date', 'asc')
             ->orderBy('start_time', 'asc');
 
         if ($isTechnicien) {
-            $missionsQuery->whereHas('users', fn($q) => $q->where('users.id', $authUser->id));
+            $missionsQuery->whereHas('personnel', fn($q) => $q->where('personnel.id', $authUser->personnel?->id ?? 0));
         }
 
         $missions = $missionsQuery->get()->map(function ($mission) {
@@ -65,9 +65,11 @@ class HomeController extends Controller
 
         // Stats : filtrées pour les techniciens
         if ($isTechnicien) {
-            $total      = $authUser->missions()->count();
-            $inProgress = $authUser->missions()->where('status', 'in_progress')->count();
-            $completed  = $authUser->missions()->where('status', 'completed')->count();
+            $myPersonnel = $authUser->personnel;
+            $myMissions  = $myPersonnel ? $myPersonnel->missions() : Mission::whereRaw('0=1');
+            $total      = $myMissions->count();
+            $inProgress = (clone $myMissions)->where('status', 'in_progress')->count();
+            $completed  = (clone $myMissions)->where('status', 'completed')->count();
         } else {
             $total      = Mission::count();
             $inProgress = Mission::where('status', 'in_progress')->count();
@@ -82,26 +84,26 @@ class HomeController extends Controller
         ];
 
         // Prochaine mission : filtrée pour les techniciens
-        $nextQuery = Mission::with('users')
+        $nextQuery = Mission::with('personnel')
             ->where('date', '>=', now()->toDateString())
             ->where('status', 'pending')
             ->orderBy('date', 'asc')
             ->orderBy('start_time', 'asc');
 
         if ($isTechnicien) {
-            $nextQuery->whereHas('users', fn($q) => $q->where('users.id', $authUser->id));
+            $nextQuery->whereHas('personnel', fn($q) => $q->where('personnel.id', $authUser->personnel?->id ?? 0));
         }
 
         $nextMission = $nextQuery->first();
 
         // Missions en retard (pending dont la date est dépassée)
-        $overdueQuery = Mission::with('users')
+        $overdueQuery = Mission::with('personnel')
             ->where('status', 'pending')
             ->where('date', '<', now()->toDateString())
             ->orderBy('date', 'asc');
 
         if ($isTechnicien) {
-            $overdueQuery->whereHas('users', fn($q) => $q->where('users.id', $authUser->id));
+            $overdueQuery->whereHas('personnel', fn($q) => $q->where('personnel.id', $authUser->personnel?->id ?? 0));
         }
 
         $overdue = $overdueQuery->get();

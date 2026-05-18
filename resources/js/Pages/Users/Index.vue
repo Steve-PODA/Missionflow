@@ -20,31 +20,13 @@
         </div>
       </div>
 
-      <!-- FILTRES ET TRI -->
+      <!-- TRI -->
       <div class="filters-row" style="margin-bottom: 20px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; background: white; padding: 16px; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.06);">
-        <div style="display: flex; gap: 8px; flex: 1; flex-wrap: wrap; align-items: center;">
-          <select v-model="filter.peloton_id" class="form-input" style="padding: 6px 12px; font-size: 13px; max-width: 180px; width: auto;" @change="filter.groupe_id = null; filter.equipe_id = null">
-            <option :value="null">Tous les pelotons</option>
-            <option v-for="p in pelotons" :key="p.id" :value="p.id">{{ p.nom }}</option>
-          </select>
-          <select v-model="filter.groupe_id" class="form-input" style="padding: 6px 12px; font-size: 13px; max-width: 180px; width: auto;" :disabled="!filter.peloton_id" @change="filter.equipe_id = null">
-            <option :value="null">Tous les groupes</option>
-            <option v-for="g in availableFilterGroupes" :key="g.id" :value="g.id">{{ g.nom }}</option>
-          </select>
-          <select v-model="filter.equipe_id" class="form-input" style="padding: 6px 12px; font-size: 13px; max-width: 180px; width: auto;" :disabled="!filter.groupe_id">
-            <option :value="null">Toutes les équipes</option>
-            <option v-for="e in availableFilterEquipes" :key="e.id" :value="e.id">{{ e.nom }}</option>
-          </select>
-          <button v-if="filter.peloton_id || filter.groupe_id || filter.equipe_id" @click="resetFilters" class="btn-cancel" style="padding: 6px 12px; font-size: 12px; border-radius: 8px; margin: 0;">✕ Réinitialiser</button>
-        </div>
         <div style="display: flex; align-items: center; gap: 8px;">
           <span style="font-size: 13px; font-weight: 600; color: #64748b; white-space: nowrap;">Trier par :</span>
           <select v-model="sortBy" class="form-input" style="padding: 6px 12px; font-size: 13px; width: 180px;">
             <option value="name">Nom (A-Z)</option>
-            <option value="affectation">Structure (Peloton > Groupe)</option>
-            <option value="role">Grade / Rôle</option>
-            <option value="availability">Disponibilité</option>
-            <option value="missions">Missions effectuées</option>
+            <option value="role">Rôle (Admin → Agent)</option>
           </select>
         </div>
       </div>
@@ -55,12 +37,10 @@
           <thead>
             <tr>
               <th>Agent</th>
+              <th>N° Incorp.</th>
               <th>Téléphone</th>
-              <th>Grade / Rôle</th>
-              <th>Affectation</th>
-              <th>Accès</th>
-              <th>Disponibilité</th>
-              <th>Missions</th>
+              <th>Personnel lié</th>
+              <th>Rôle</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -75,33 +55,32 @@
                   </div>
                 </div>
               </td>
-              <td class="cell-phone">{{ user.phone_number || '—' }}</td>
-              <td>{{ user.role || '—' }}</td>
               <td>
-                <div v-if="user.peloton" class="affectation-info">
-                  <span class="pel-tag">{{ user.peloton.nom }}</span>
-                  <span v-if="user.groupe" class="grp-tag"> › {{ user.groupe.nom }}</span>
-                  <span v-if="user.equipe" class="eq-tag"> › {{ user.equipe.nom }}</span>
+                <span v-if="user.personnel?.numero_incorporation" class="incorp-tag">{{ user.personnel.numero_incorporation }}</span>
+                <span v-else style="color:#9ca3af; font-style:italic; font-size:12px;">—</span>
+              </td>
+              <td>
+                <span v-if="user.phone_number" class="cell-phone">{{ user.phone_number }}</span>
+                <span v-else style="color:#9ca3af; font-style:italic; font-size:12px;">—</span>
+              </td>
+              <td>
+                <div v-if="user.personnel" class="personnel-cell">
+                  <span class="personnel-name">{{ user.personnel.name }}</span>
+                  <span v-if="user.personnel.numero_incorporation" class="incorp-tag">N° {{ user.personnel.numero_incorporation }}</span>
                 </div>
-                <span v-else style="color: #9ca3af; font-style: italic;">Non affecté</span>
+                <span v-else style="color:#9ca3af; font-style:italic; font-size:12px;">Aucun</span>
               </td>
               <td>
                 <span class="role-badge" :class="'role-' + user.spatie_role">{{ roleLabel(user.spatie_role) }}</span>
               </td>
               <td>
-                <span class="avail-badge" :class="'avail-' + user.availability">{{ availLabel(user.availability) }}</span>
-              </td>
-              <td class="cell-center">{{ user.missions_count }}</td>
-              <td>
                 <div class="row-actions">
-                  <!-- Modifier -->
                   <button class="action-btn edit" @click="openEdit(user)" title="Modifier">
                     <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                     </svg>
                   </button>
-                  <!-- Bloquer / Débloquer -->
                   <button
                     class="action-btn"
                     :class="user.is_blocked ? 'unblock' : 'block'"
@@ -118,7 +97,6 @@
                       <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
                     </svg>
                   </button>
-                  <!-- Supprimer -->
                   <button
                     class="action-btn delete"
                     @click="confirmDelete(user)"
@@ -174,48 +152,6 @@
             <label>{{ editingUser ? 'Nouveau mot de passe (laisser vide pour ne pas changer)' : 'Mot de passe' }} <span v-if="!editingUser" class="required">*</span></label>
             <input v-model="form.password" type="password" class="form-input" :class="{ 'input-error': errors.password }" placeholder="8 caractères minimum" />
             <span v-if="errors.password" class="error-msg">{{ errors.password[0] }}</span>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label>Grade / Intitulé de poste</label>
-              <input v-model="form.role" type="text" class="form-input" placeholder="Ex : Technicien Senior, Chef d'équipe..." />
-            </div>
-            <div class="form-group">
-              <label>Disponibilité <span class="required">*</span></label>
-              <select v-model="form.availability" class="form-input">
-                <option value="available">Disponible</option>
-                <option value="on_leave">En congé</option>
-                <option value="unavailable">Indisponible</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label>Peloton X</label>
-              <select v-model="form.peloton_id" class="form-input" @change="form.groupe_id = null; form.equipe_id = null">
-                <option :value="null">-- Aucun --</option>
-                <option v-for="p in pelotons" :key="p.id" :value="p.id">{{ p.nom }}</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Groupe</label>
-              <select v-model="form.groupe_id" class="form-input" :disabled="!form.peloton_id" @change="form.equipe_id = null">
-                <option :value="null">-- Aucun --</option>
-                <option v-for="g in availableGroupes" :key="g.id" :value="g.id">{{ g.nom }}</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label>Équipe</label>
-              <select v-model="form.equipe_id" class="form-input" :disabled="!form.groupe_id">
-                <option :value="null">-- Aucune --</option>
-                <option v-for="e in availableEquipes" :key="e.id" :value="e.id">{{ e.nom }}</option>
-              </select>
-            </div>
           </div>
 
           <div class="form-group">
@@ -304,7 +240,6 @@ export default {
   props: {
     users: { type: Array, default: () => [] },
     roles: { type: Array, default: () => [] },
-    pelotons: { type: Array, default: () => [] },
   },
 
   data() {
@@ -315,24 +250,14 @@ export default {
       blockingUser: null,
       isSaving:     false,
       errors:       {},
-      filter: {
-        peloton_id: null,
-        groupe_id:  null,
-        equipe_id:  null,
-      },
       sortBy: 'name',
-      search:       '',
+      search: '',
       form: {
         name:         '',
         email:        '',
         phone_number: '',
         password:     '',
-        role:         '',
         spatie_role:  'agent',
-        availability: 'available',
-        peloton_id:   null,
-        groupe_id:    null,
-        equipe_id:    null,
       },
     }
   },
@@ -344,81 +269,23 @@ export default {
     filteredUsers() {
       let result = [...this.users]
 
-      // 1. Recherche par mot-clé
       const q = this.search.trim().toLowerCase()
       if (q) {
         result = result.filter(u =>
           u.name.toLowerCase().includes(q) ||
           u.email.toLowerCase().includes(q) ||
           (u.phone_number || '').includes(q) ||
-          (u.role || '').toLowerCase().includes(q)
+          u.personnel?.name?.toLowerCase().includes(q)
         )
       }
 
-      // 2. Filtres hiérarchiques
-      if (this.filter.peloton_id) {
-        result = result.filter(u => u.peloton_id == this.filter.peloton_id)
-      }
-      if (this.filter.groupe_id) {
-        result = result.filter(u => u.groupe_id == this.filter.groupe_id)
-      }
-      if (this.filter.equipe_id) {
-        result = result.filter(u => u.equipe_id == this.filter.equipe_id)
-      }
-
-      // 3. Tri
+      const roleOrder = { admin: 0, manager: 1, agent: 2 }
       result.sort((a, b) => {
-        if (this.sortBy === 'name') {
-          return a.name.localeCompare(b.name)
-        }
-        if (this.sortBy === 'role') {
-          return (a.role || '').localeCompare(b.role || '')
-        }
-        if (this.sortBy === 'missions') {
-          return b.missions_count - a.missions_count
-        }
-        if (this.sortBy === 'availability') {
-          const order = { available: 0, on_leave: 1, unavailable: 2 }
-          return (order[a.availability] ?? 0) - (order[b.availability] ?? 0)
-        }
-        if (this.sortBy === 'affectation') {
-          const pelA = a.peloton?.nom ?? ''
-          const pelB = b.peloton?.nom ?? ''
-          if (pelA !== pelB) return pelA.localeCompare(pelB)
-
-          const grpA = a.groupe?.nom ?? ''
-          const grpB = b.groupe?.nom ?? ''
-          if (grpA !== grpB) return grpA.localeCompare(grpB)
-
-          const eqA = a.equipe?.nom ?? ''
-          const eqB = b.equipe?.nom ?? ''
-          return eqA.localeCompare(eqB)
-        }
-        return 0
+        if (this.sortBy === 'role') return (roleOrder[a.spatie_role] ?? 3) - (roleOrder[b.spatie_role] ?? 3)
+        return a.name.localeCompare(b.name)
       })
 
       return result
-    },
-    availableFilterGroupes() {
-      if (!this.filter.peloton_id) return []
-      const peloton = this.pelotons.find(p => p.id == this.filter.peloton_id)
-      return peloton ? peloton.groupes : []
-    },
-    availableFilterEquipes() {
-      if (!this.filter.groupe_id) return []
-      const groupes = this.availableFilterGroupes
-      const groupe = groupes.find(g => g.id == this.filter.groupe_id)
-      return groupe ? groupe.equipes : []
-    },
-    availableGroupes() {
-      if (!this.form.peloton_id) return []
-      const peloton = this.pelotons.find(p => p.id === this.form.peloton_id)
-      return peloton ? peloton.groupes : []
-    },
-    availableEquipes() {
-      if (!this.form.groupe_id) return []
-      const groupe = this.availableGroupes.find(g => g.id === this.form.groupe_id)
-      return groupe ? groupe.equipes : []
     },
     isValid() {
       return (
@@ -431,15 +298,10 @@ export default {
   },
 
   methods: {
-    resetFilters() {
-      this.filter.peloton_id = null
-      this.filter.groupe_id = null
-      this.filter.equipe_id = null
-    },
     openCreate() {
       this.editingUser = null
       this.errors      = {}
-      this.form        = { name: '', email: '', phone_number: '', password: '', role: '', spatie_role: 'agent', availability: 'available', peloton_id: null, groupe_id: null, equipe_id: null }
+      this.form        = { name: '', email: '', phone_number: '', password: '', spatie_role: 'agent' }
       this.showModal   = true
     },
     openEdit(user) {
@@ -450,12 +312,7 @@ export default {
         email:        user.email,
         phone_number: user.phone_number ?? '',
         password:     '',
-        role:         user.role ?? '',
         spatie_role:  user.spatie_role,
-        availability: user.availability ?? 'available',
-        peloton_id:   user.peloton_id ?? null,
-        groupe_id:    user.groupe_id ?? null,
-        equipe_id:    user.equipe_id ?? null,
       }
       this.showModal = true
     },
@@ -517,7 +374,6 @@ export default {
         agent: 'Consultation et mise à jour de statut uniquement',
       }[r] ?? ''
     },
-    availLabel(a) { return { available: 'Disponible', on_leave: 'En congé', unavailable: 'Indisponible' }[a] ?? a },
   },
 }
 </script>
@@ -583,6 +439,9 @@ export default {
 .row-blocked:hover td { background: #fef2f2 !important; opacity: 1; }
 .cell-email  { color: #6b7280; font-size: 12px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
 .cell-phone  { color: #6b7280; font-size: 12px; font-family: monospace; }
+.incorp-tag     { font-size: 11px; font-weight: 700; color: #4f6fee; font-family: monospace; background: #f0f4ff; border: 1px solid #c7d2fe; border-radius: 4px; padding: 2px 6px; }
+.personnel-cell { display: flex; flex-direction: column; gap: 2px; }
+.personnel-name { font-size: 13px; font-weight: 600; color: #1a1f2e; }
 .cell-center { text-align: center; font-weight: 700; color: #1a1f2e; }
 .field-hint  { font-size: 11px; color: #9ca3af; margin-top: 4px; display: block; white-space: normal; }
 

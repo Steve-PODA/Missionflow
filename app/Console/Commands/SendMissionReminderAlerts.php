@@ -21,7 +21,7 @@ class SendMissionReminderAlerts extends Command
         $tomorrow = Carbon::tomorrow()->toDateString();
         $trigger  = $this->option('trigger');
 
-        $missions = Mission::with('users')
+        $missions = Mission::with('personnel')
             ->whereDate('date', $tomorrow)
             ->whereIn('status', ['pending', 'in_progress'])
             ->get();
@@ -38,15 +38,15 @@ class SendMissionReminderAlerts extends Command
             $dateFormatted = Carbon::parse($mission->date)->translatedFormat('l d F Y');
             $timeFormatted = substr($mission->start_time, 0, 5);
 
-            foreach ($mission->users as $user) {
-                if (empty($user->phone_number)) {
-                    $this->warn("  [SKIP] {$user->name} — pas de numéro WhatsApp.");
+            foreach ($mission->personnel as $membre) {
+                if (empty($membre->phone_number)) {
+                    $this->warn("  [SKIP] {$membre->name} — pas de numéro WhatsApp.");
                     continue;
                 }
 
                 $ok = $whatsapp->sendMissionReminder(
-                    to:           $user->phone_number,
-                    agentName:    $user->name,
+                    to:           $membre->phone_number,
+                    agentName:    $membre->name,
                     missionTitle: $mission->title,
                     date:         $dateFormatted,
                     time:         $timeFormatted,
@@ -54,9 +54,9 @@ class SendMissionReminderAlerts extends Command
                 );
 
                 WhatsAppLog::create([
-                    'user_id'      => $user->id,
+                    'user_id'      => $membre->user_id,
                     'mission_id'   => $mission->id,
-                    'phone_number' => $user->phone_number,
+                    'phone_number' => $membre->phone_number,
                     'template'     => 'mission_reminder',
                     'status'       => $ok ? 'sent' : 'failed',
                     'trigger'      => $trigger,
@@ -64,10 +64,10 @@ class SendMissionReminderAlerts extends Command
                 ]);
 
                 if ($ok) {
-                    $this->info("  [OK] Rappel J-1 envoyé à {$user->name} pour « {$mission->title} ».");
+                    $this->info("  [OK] Rappel J-1 envoyé à {$membre->name} pour « {$mission->title} ».");
                     $sent++;
                 } else {
-                    $this->error("  [ERR] Échec envoi à {$user->name} ({$user->phone_number}).");
+                    $this->error("  [ERR] Échec envoi à {$membre->name} ({$membre->phone_number}).");
                     $errors++;
                 }
             }

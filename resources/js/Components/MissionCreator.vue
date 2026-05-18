@@ -207,7 +207,7 @@
       <!-- Officier de liaison + Ligne sécurisée -->
       <div class="form-row">
         <div class="form-group">
-          <label>Officier de liaison <span class="required">*</span></label>
+          <label>Officier de liaison</label>
           <div class="input-with-badge">
             <input
               type="text"
@@ -222,7 +222,7 @@
           <span v-if="errors.clientName" class="error-msg">{{ errors.clientName[0] }}</span>
         </div>
         <div class="form-group">
-          <label>Ligne sécurisée <span class="required">*</span></label>
+          <label>Ligne sécurisée</label>
           <div class="input-with-badge">
             <input
               type="tel"
@@ -335,20 +335,26 @@ export default {
         }
       }
     },
-    'form.selectedTeam'(newVal) {
-      if (newVal.length === 1) {
-        this.leaderId = newVal[0]
-        this.fillFromLeader(newVal[0])
-      } else if (newVal.length === 0) {
-        this.leaderId   = null
-        this.autoFilled = false
-      } else {
-        // plusieurs membres : si le leader actuel n'est plus dans la sélection, le retirer
-        if (this.leaderId && !newVal.includes(this.leaderId)) {
-          this.leaderId   = null
-          this.autoFilled = false
+    leaderId(newId) {
+      if (newId) this.fillFromLeader(newId)
+    },
+    'form.selectedTeam': {
+      deep: true,
+      handler(newVal) {
+        if (newVal.length === 1) {
+          this.leaderId = newVal[0]
+        } else if (newVal.length === 0) {
+          this.leaderId            = null
+          this.autoFilled          = false
+          this.form.clientName     = ''
+          this.form.clientPhone    = ''
+        } else {
+          if (this.leaderId && !newVal.includes(this.leaderId)) {
+            this.leaderId   = null
+            this.autoFilled = false
+          }
         }
-      }
+      },
     },
   },
 
@@ -408,9 +414,7 @@ export default {
         this.form.startTime &&
         this.form.location.trim() &&
         this.form.selectedTeam.length > 0 &&
-        leaderOk &&
-        this.form.clientName.trim() &&
-        this.form.clientPhone.trim()
+        leaderOk
       )
     }
   },

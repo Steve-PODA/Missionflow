@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -55,9 +56,9 @@ class Mission extends Model
      * Relation avec les membres de l'équipe (Utilisateurs).
      * Permet de lier plusieurs techniciens à une mission.
      */
-    public function users(): BelongsToMany
+    public function personnel(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'mission_user')
+        return $this->belongsToMany(Personnel::class, 'mission_personnel')
                     ->withPivot('role_dans_mission', 'peloton_name', 'groupe_name', 'equipe_name')
                     ->withTimestamps();
     }

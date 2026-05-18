@@ -74,7 +74,7 @@
           <div class="detail-row"><span class="detail-icon">&#128336;</span><span>{{ formatTime(mission.start_time) }} · {{ formatDuration(mission.duration) }}</span></div>
           <div class="detail-row"><span class="detail-icon">📅</span><span>{{ formatDate(mission.date) }}</span></div>
           <div class="detail-row"><span class="detail-icon">&#128205;</span><span>{{ mission.location }}</span></div>
-          <div class="detail-row"><span class="detail-icon">🪖</span><span>{{ mission.users?.map(u => u.name).join(', ') || 'Aucun agent affecté' }}</span></div>
+          <div class="detail-row"><span class="detail-icon">🪖</span><span>{{ mission.personnel?.map(u => u.name).join(', ') || 'Aucun agent affecté' }}</span></div>
         </div>
         <div class="card-actions" v-if="nextStatus(mission.status) || canCancel(mission.status) || isCompleted(mission.status)">
           <button
@@ -143,8 +143,8 @@ export default {
 
       const names = [];
       this.missions.forEach(mission => {
-        if (mission.users) {
-          mission.users.forEach(user => {
+        if (mission.personnel) {
+          mission.personnel.forEach(user => {
             if (user.name) names.push(user.name);
           });
         }
@@ -259,7 +259,7 @@ export default {
       const dateString = newDate.toISOString().split('T')[0];
 
       // Récupérer les IDs des utilisateurs assignés
-      const selectedTeamIds = mission.users?.map(u => u.id) || [];
+      const selectedTeamIds = mission.personnel?.map(u => u.id) || [];
 
       // Corriger le format de l'heure (H:i)
       let startTime = mission.start_time;

@@ -52,7 +52,7 @@ class ReportController extends Controller
         }
 
         // ── Stats par agent ───────────────────────────────────────
-        $agents = User::withCount([
+        $agents = \App\Models\Personnel::withCount([
                 'missions',
                 'missions as completed_count' => fn($q) => $q->where('status', 'completed'),
                 'missions as cancelled_count' => fn($q) => $q->where('status', 'cancelled'),
@@ -63,7 +63,7 @@ class ReportController extends Controller
             ->map(fn($u) => [
                 'id'          => $u->id,
                 'name'        => $u->name,
-                'role'        => $u->role,
+                'grade'       => $u->grade,
                 'total'       => $u->missions_count,
                 'completed'   => $u->completed_count,
                 'cancelled'   => $u->cancelled_count,
@@ -106,7 +106,7 @@ class ReportController extends Controller
 
     public function export(): StreamedResponse
     {
-        $missions = Mission::with('users')->orderBy('date', 'desc')->get();
+        $missions = Mission::with('personnel')->orderBy('date', 'desc')->get();
 
         $statusLabels   = ['pending' => 'En attente', 'in_progress' => 'En opération', 'completed' => 'Accomplie', 'cancelled' => 'Abandonnée'];
         $priorityLabels = ['urgent' => 'CRITIQUE', 'high' => 'Haute', 'medium' => 'Standard', 'low' => 'Faible'];
@@ -128,7 +128,7 @@ class ReportController extends Controller
                     $m->location,
                     $priorityLabels[$m->priority] ?? $m->priority,
                     $statusLabels[$m->status]     ?? $m->status,
-                    $m->users->pluck('name')->join(', '),
+                    $m->personnel->pluck('name')->join(', '),
                     $m->client_name,
                     $m->client_phone,
                 ], ';');

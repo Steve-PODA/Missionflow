@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Auth;
 class EnsureSessionIsAlive
 {
     // Délai en secondes : en dessous = refresh de page (pas une fermeture réelle)
-    const REFRESH_GRACE_SECONDS = 5;
+    const REFRESH_GRACE_SECONDS = 20;
 
     public function handle(Request $request, Closure $next)
     {

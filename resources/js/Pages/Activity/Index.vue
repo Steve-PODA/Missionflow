@@ -51,7 +51,7 @@
                   <span v-if="a.causer" class="item-causer">
                     <span class="causer-avatar" :style="{ background: getColor(a.causer.name) }">{{ getInitials(a.causer.name) }}</span>
                     {{ a.causer.name }}
-                    <span v-if="a.causer.role" class="causer-role">· {{ a.causer.role }}</span>
+                    
                   </span>
                   <span v-else class="item-causer text-gray">Système</span>
                   <span class="item-time">{{ formatTime(a.created_at) }}</span>

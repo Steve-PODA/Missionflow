@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Mission;
+use App\Models\Personnel;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -31,10 +32,15 @@ class MissionController extends Controller
         $authUser     = Auth::user();
         $isTechnicien = $authUser->hasRole('agent');
 
-        $missionsQuery = Mission::with('users')->orderBy('created_at', 'desc');
+        $missionsQuery = Mission::with('personnel')->orderBy('created_at', 'desc');
 
         if ($isTechnicien) {
-            $missionsQuery->whereHas('users', fn($q) => $q->where('users.id', $authUser->id));
+            $myPersonnel = $authUser->personnel;
+            if ($myPersonnel) {
+                $missionsQuery->whereHas('personnel', fn($q) => $q->where('personnel.id', $myPersonnel->id));
+            } else {
+                $missionsQuery->whereRaw('0 = 1');
+            }
         }
 
         $missions = $missionsQuery->get();
@@ -48,9 +54,6 @@ class MissionController extends Controller
         ]);
     }
 
-    /**
-     * Affiche le formulaire de création de mission
-     */
     public function create()
     {
         $pelotons = \App\Models\Peloton::with(['groupes.equipes'])->get();
@@ -61,12 +64,8 @@ class MissionController extends Controller
         ]);
     }
 
-    /**
-     * Enregistre une nouvelle mission
-     */
     public function store(Request $request)
     {
-        // 1. Validation rigoureuse des données provenant de Vue
         $validated = $request->validate([
             'title'          => 'required|string|max:255',
             'briefing'       => 'nullable|string',
@@ -76,13 +75,13 @@ class MissionController extends Controller
             'duration'       => 'required|numeric|in:0.5,1,2,4,8',
             'priority'       => 'required|in:low,medium,high,urgent',
             'location'       => 'required|string',
-            'equipeSourceId' => 'required|exists:equipes,id',
-            'chefMissionId'  => 'required|exists:users,id',
+            'equipeSourceId' => 'nullable|exists:equipes,id',
+            'chefMissionId'  => 'nullable|exists:personnel,id',
             'selectedTeam'   => 'required|array|min:1',
-            'selectedTeam.*' => 'exists:users,id',
-            'clientName'     => 'required|string',
+            'selectedTeam.*' => 'exists:personnel,id',
+            'clientName'     => 'nullable|string',
             'clientEmail'    => 'nullable|email',
-            'clientPhone'    => 'required|string',
+            'clientPhone'    => 'nullable|string',
         ], [
             'date.after_or_equal' => 'La date de la mission ne peut pas être dans le passé.',
         ]);
@@ -96,33 +95,29 @@ class MissionController extends Controller
             'duration'         => $validated['duration'],
             'priority'         => $validated['priority'],
             'location'         => $validated['location'],
-            'client_name'      => $validated['clientName'],
+            'client_name'      => $validated['clientName'] ?? null,
             'client_email'     => $validated['clientEmail'] ?? null,
-            'client_phone'     => $validated['clientPhone'],
+            'client_phone'     => $validated['clientPhone'] ?? null,
             'status'           => 'pending',
-            'equipe_source_id' => $validated['equipeSourceId'],
+            'equipe_source_id' => $validated['equipeSourceId'] ?? null,
         ]);
 
-        // 3. Liaison avec l'équipe (Table pivot mission_user)
-        $users = User::with(['peloton', 'groupe', 'equipe'])->whereIn('id', $validated['selectedTeam'])->get();
+        $members = Personnel::with(['peloton', 'groupe', 'equipe'])->whereIn('id', $validated['selectedTeam'])->get();
+        $chefId  = $validated['chefMissionId'] ?? $members->first()?->id;
         $syncData = [];
-        foreach ($users as $u) {
-            $syncData[$u->id] = [
-                'role_dans_mission' => ($u->id == $validated['chefMissionId']) ? 'chef_mission' : 'membre',
-                'peloton_name'      => $u->peloton?->nom,
-                'groupe_name'       => $u->groupe?->nom,
-                'equipe_name'       => $u->equipe?->nom,
+        foreach ($members as $p) {
+            $syncData[$p->id] = [
+                'role_dans_mission' => ($p->id == $chefId) ? 'chef_mission' : 'membre',
+                'peloton_name'      => $p->peloton?->nom,
+                'groupe_name'       => $p->groupe?->nom,
+                'equipe_name'       => $p->equipe?->nom,
             ];
         }
-        $mission->users()->sync($syncData);
+        $mission->personnel()->sync($syncData);
 
-        // 4. Retourner vers l'index avec un message
         return Redirect::route('missions.index')->with('success', 'Opération déployée avec succès.');
     }
 
-    /**
-     * Affiche le formulaire d'édition de mission
-     */
     public function edit(Mission $mission)
     {
         if (in_array($mission->status, ['completed', 'cancelled'])) {
@@ -130,7 +125,7 @@ class MissionController extends Controller
                 ->with('error', 'Cette opération est terminée et ne peut plus être modifiée.');
         }
 
-        $mission->load('users');
+        $mission->load('personnel');
         $pelotons = \App\Models\Peloton::with(['groupes.equipes'])->get();
 
         return Inertia::render('Missions/MissionEditor', [
@@ -157,10 +152,10 @@ class MissionController extends Controller
             'priority'       => 'required|in:low,medium,high,urgent',
             'location'       => 'required|string',
             'selectedTeam'   => 'required|array|min:1',
-            'selectedTeam.*' => 'exists:users,id',
-            'clientName'     => 'required|string',
+            'selectedTeam.*' => 'exists:personnel,id',
+            'clientName'     => 'nullable|string',
             'clientEmail'    => 'nullable|email',
-            'clientPhone'    => 'required|string',
+            'clientPhone'    => 'nullable|string',
         ], [
             'date.after_or_equal' => 'La date de la mission ne peut pas être dans le passé.',
         ]);
@@ -174,24 +169,23 @@ class MissionController extends Controller
             'duration'     => $validated['duration'],
             'priority'     => $validated['priority'],
             'location'     => $validated['location'],
-            'client_name'  => $validated['clientName'],
+            'client_name'  => $validated['clientName'] ?? null,
             'client_email' => $validated['clientEmail'] ?? null,
-            'client_phone' => $validated['clientPhone'],
+            'client_phone' => $validated['clientPhone'] ?? null,
         ]);
 
-        $users = User::with(['peloton', 'groupe', 'equipe'])->whereIn('id', $validated['selectedTeam'])->get();
+        $members = Personnel::with(['peloton', 'groupe', 'equipe'])->whereIn('id', $validated['selectedTeam'])->get();
         $syncData = [];
-        foreach ($users as $u) {
-            // Keep the previous role if we are just updating
-            $existingPivot = $mission->users->find($u->id)?->pivot;
-            $syncData[$u->id] = [
+        foreach ($members as $p) {
+            $existingPivot = $mission->personnel->find($p->id)?->pivot;
+            $syncData[$p->id] = [
                 'role_dans_mission' => $existingPivot ? $existingPivot->role_dans_mission : 'membre',
-                'peloton_name'      => $u->peloton?->nom,
-                'groupe_name'       => $u->groupe?->nom,
-                'equipe_name'       => $u->equipe?->nom,
+                'peloton_name'      => $p->peloton?->nom,
+                'groupe_name'       => $p->groupe?->nom,
+                'equipe_name'       => $p->equipe?->nom,
             ];
         }
-        $mission->users()->sync($syncData);
+        $mission->personnel()->sync($syncData);
 
         return Redirect::route('missions.index')->with('success', 'Opération mise à jour.');
     }
@@ -225,7 +219,7 @@ class MissionController extends Controller
     public function destroy(Mission $mission)
     {
         $title = $mission->title;
-        $mission->users()->detach();
+        $mission->personnel()->detach();
         $mission->delete();
 
         return Redirect::back()->with('success', "« {$title} » a été supprimée.");
@@ -240,8 +234,9 @@ class MissionController extends Controller
         /** @var \App\Models\User $authUser */
         $authUser = Auth::user();
         if (!$authUser->can('edit missions')) {
+            $myPersonnel = $authUser->personnel;
             abort_if(
-                !$mission->users()->where('users.id', $authUser->id)->exists(),
+                !$myPersonnel || !$mission->personnel()->where('personnel.id', $myPersonnel->id)->exists(),
                 403,
                 'Vous n\'êtes pas affecté à cette opération.'
             );
@@ -260,32 +255,35 @@ class MissionController extends Controller
         return back()->with('success', 'Statut de l\'opération mis à jour.');
     }
 
-    private function getTeamMembers()
+    private function getTeamMembers(): array
     {
-        return User::with([
+        return Personnel::with([
                 'missions' => fn($q) => $q->where('status', 'in_progress')->select('missions.id', 'missions.title'),
                 'peloton',
                 'groupe',
-                'equipe'
+                'equipe',
+                'user',
             ])
             ->get()
-            ->map(fn($user) => [
-                'id'              => $user->id,
-                'name'            => $user->name,
-                'role'            => $user->role,
-                'avatar'          => $user->avatar,
-                'availability'    => $user->availability,
-                'phone_number'    => $user->phone_number,
-                'email'           => $user->email,
-                'peloton_id'      => $user->peloton_id,
-                'groupe_id'       => $user->groupe_id,
-                'equipe_id'       => $user->equipe_id,
-                'peloton'         => $user->peloton,
-                'groupe'          => $user->groupe,
-                'equipe'          => $user->equipe,
-                'active_mission'  => $user->missions->first()?->only(['id', 'title']),
-                'computed_status' => $user->missions->isNotEmpty() ? 'deployed' : $user->availability,
-                'missions_count'  => $user->missions->count(),
-            ]);
+            ->map(fn($p) => [
+                'id'              => $p->id,
+                'name'            => $p->name,
+                'grade'           => $p->grade,
+                'fonction'        => $p->fonction,
+                'avatar'          => $p->avatar,
+                'availability'    => $p->availability,
+                'phone_number'    => $p->phone_number,
+                'email'           => $p->user?->email,
+                'peloton_id'      => $p->peloton_id,
+                'groupe_id'       => $p->groupe_id,
+                'equipe_id'       => $p->equipe_id,
+                'peloton'         => $p->peloton,
+                'groupe'          => $p->groupe,
+                'equipe'          => $p->equipe,
+                'active_mission'  => $p->missions->first()?->only(['id', 'title']),
+                'computed_status' => $p->missions->isNotEmpty() ? 'deployed' : $p->availability,
+                'missions_count'  => $p->missions->count(),
+            ])
+            ->toArray();
     }
 }

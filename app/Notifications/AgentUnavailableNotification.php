@@ -2,7 +2,7 @@
 
 namespace App\Notifications;
 
-use App\Models\User;
+use App\Models\Personnel;
 use Illuminate\Notifications\Notification;
 
 class AgentUnavailableNotification extends Notification
@@ -13,7 +13,7 @@ class AgentUnavailableNotification extends Notification
     ];
 
     public function __construct(
-        private User $agent,
+        private Personnel $agent,
         private string $availability,
     ) {}
 

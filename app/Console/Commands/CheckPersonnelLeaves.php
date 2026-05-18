@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\User;
+use App\Models\Personnel;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
@@ -13,39 +13,39 @@ class CheckPersonnelLeaves extends Command
 
     public function handle(): void
     {
-        $expired = User::where('availability', 'on_leave')
+        $expired = Personnel::where('availability', 'on_leave')
             ->whereNotNull('leave_start_date')
             ->whereNotNull('leave_duration')
             ->whereNotNull('leave_unit')
             ->get()
-            ->filter(fn($user) => self::isExpired($user));
+            ->filter(fn($p) => self::isExpired($p));
 
-        foreach ($expired as $user) {
-            $user->update(['availability' => 'leave_expired']);
+        foreach ($expired as $p) {
+            $p->update(['availability' => 'leave_expired']);
 
             activity('personnel')
-                ->performedOn($user)
+                ->performedOn($p)
                 ->withProperties(['old' => 'on_leave', 'new' => 'leave_expired'])
-                ->log("Congé de « {$user->name} » arrivé à échéance — retour à confirmer");
+                ->log("Congé de « {$p->name} » arrivé à échéance — retour à confirmer");
 
-            $this->line("✓ {$user->name} → leave_expired");
+            $this->line("✓ {$p->name} → leave_expired");
         }
 
         $this->info("{$expired->count()} agent(s) passé(s) en attente de confirmation.");
     }
 
-    public static function isExpired(User $user): bool
+    public static function isExpired(Personnel $p): bool
     {
-        if (!$user->leave_start_date || !$user->leave_duration || !$user->leave_unit) {
+        if (!$p->leave_start_date || !$p->leave_duration || !$p->leave_unit) {
             return false;
         }
 
-        $end = Carbon::parse($user->leave_start_date);
+        $end = Carbon::parse($p->leave_start_date);
 
-        if ($user->leave_unit === 'months') {
-            $end->addMonths($user->leave_duration);
+        if ($p->leave_unit === 'months') {
+            $end->addMonths($p->leave_duration);
         } else {
-            $end->addDays($user->leave_duration);
+            $end->addDays($p->leave_duration);
         }
 
         return $end->toDateString() < now()->toDateString();

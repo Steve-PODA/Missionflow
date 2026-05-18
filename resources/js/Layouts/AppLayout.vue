@@ -25,6 +25,10 @@
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <span>Personnel</span>
         </Link>
+        <Link v-if="$page.props.auth.can.view_chevaux" :href="route('chevaux.index')" class="nav-item" :class="{ active: route().current('chevaux.*') }">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 21 14 3"/><path d="m17 21-4-8"/><path d="M6.5 8C9 5.5 12 5 15 6l3-3 3 3-3.5 4c.5 1.5.5 3 0 4.5"/><path d="M14 12c-1 2-2.5 3-4 3-2.5 0-4.5-2-4.5-4.5"/></svg>
+          <span>Chevaux</span>
+        </Link>
         <Link v-if="$page.props.auth.can.edit_missions" :href="route('reports.index')" class="nav-item" :class="{ active: route().current('reports.*') }">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
           <span>Rapports</span>
@@ -69,7 +73,7 @@
           <input ref="avatarInput" type="file" accept="image/jpeg,image/png,image/webp" class="avatar-hidden-input" @change="uploadAvatar" />
           <div class="user-details">
             <span class="user-name">{{ $page.props.auth.user.name }}</span>
-            <span class="user-role">{{ $page.props.auth.user.role || 'Utilisateur' }}</span>
+            <span class="user-role">{{ $page.props.auth.roles[0] || 'Utilisateur' }}</span>
           </div>
         </div>
         <Link :href="route('logout')" method="post" as="button" class="logout-btn">
@@ -127,7 +131,7 @@
             <div class="topbar-avatar">{{ initials }}</div>
             <div class="topbar-user-info">
               <span class="topbar-user-name">{{ $page.props.auth.user.name }}</span>
-              <span class="topbar-user-role">{{ $page.props.auth.user.role || 'Utilisateur' }}</span>
+              <span class="topbar-user-role">{{ $page.props.auth.roles[0] || 'Utilisateur' }}</span>
             </div>
           </div>
         </div>
@@ -201,24 +205,14 @@ function closeAvatarMenu(e) {
   }
 }
 
-function sendCloseBeacon() {
-  const token = document.querySelector('meta[name="csrf-token"]')?.content
-  if (!token) return
-  const data = new FormData()
-  data.append('_token', token)
-  navigator.sendBeacon('/auth/session-close', data)
-}
-
 onMounted(() => {
   document.addEventListener('click', closeAvatarMenu)
   document.addEventListener('click', closeNotifPanel)
-  window.addEventListener('beforeunload', sendCloseBeacon)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', closeAvatarMenu)
   document.removeEventListener('click', closeNotifPanel)
-  window.removeEventListener('beforeunload', sendCloseBeacon)
 })
 
 function triggerAvatarInput() {

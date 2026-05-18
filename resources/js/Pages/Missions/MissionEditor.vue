@@ -159,7 +159,7 @@
                 </div>
                 <div class="member-info">
                   <span class="member-name">{{ member.name }}</span>
-                  <span class="member-role">{{ member.role }}</span>
+                  <span class="member-role">{{ member.grade }}</span>
                   <span v-if="member.active_mission && !isSelected(member.id)" class="member-op">⚔️ {{ member.active_mission.title }}</span>
                 </div>
                 <span class="avail-badge" :class="'avail-' + (member.computed_status || 'available')">
@@ -185,7 +185,7 @@
                 <div class="member-avatar" :style="{ background: getUserColor(member.name) }">{{ getInitials(member.name) }}</div>
                 <div class="leader-info">
                   <span class="member-name">{{ member.name }}</span>
-                  <span class="member-role">{{ member.role || '—' }}</span>
+                  <span class="member-role">{{ member.grade || '—' }}</span>
                 </div>
                 <div class="radio-circle" :class="{ checked: leaderId === member.id }">
                   <div v-if="leaderId === member.id" class="radio-dot"></div>
@@ -197,7 +197,7 @@
           <!-- Officier de liaison + Ligne sécurisée -->
           <div class="form-row">
             <div class="form-group">
-              <label>Officier de liaison <span class="required">*</span></label>
+              <label>Officier de liaison</label>
               <div class="input-with-badge">
                 <input
                   type="text"
@@ -211,7 +211,7 @@
               <span v-if="errors.clientName" class="error-msg">{{ errors.clientName[0] }}</span>
             </div>
             <div class="form-group">
-              <label>Ligne sécurisée <span class="required">*</span></label>
+              <label>Ligne sécurisée</label>
               <div class="input-with-badge">
                 <input
                   type="tel"
@@ -275,11 +275,11 @@ export default {
   },
 
   data() {
-    const selectedTeam = (this.mission.users ?? []).map(u => u.id)
+    const selectedTeam = (this.mission.personnel ?? []).map(u => u.id)
     const today = new Date().toLocaleDateString('sv-SE')
     
     let initialLeader = null
-    const chefPivot = (this.mission.users ?? []).find(u => u.pivot && u.pivot.role_dans_mission === 'chef_mission')
+    const chefPivot = (this.mission.personnel ?? []).find(u => u.pivot && u.pivot.role_dans_mission === 'chef_mission')
     if (chefPivot) {
       initialLeader = chefPivot.id
     } else if (selectedTeam.length === 1) {
@@ -332,7 +332,7 @@ export default {
         const newSelection = new Set([...this.form.selectedTeam, ...idsToAdd])
         this.form.selectedTeam = Array.from(newSelection)
 
-        const leader = equipeMembers.find(m => m.role === 'Chef d\'équipe' || m.role === 'chef_equipe')
+        const leader = equipeMembers.find(m => m.grade === 'Chef d\'équipe' || m.grade === 'chef_equipe')
         if (leader) {
           this.$nextTick(() => {
             this.selectLeader(leader.id)
@@ -340,19 +340,25 @@ export default {
         }
       }
     },
-    'form.selectedTeam'(newVal) {
-      if (newVal.length === 1) {
-        this.leaderId = newVal[0]
-        this.fillFromLeader(newVal[0])
-      } else if (newVal.length === 0) {
-        this.leaderId   = null
-        this.autoFilled = false
-      } else {
-        if (this.leaderId && !newVal.includes(this.leaderId)) {
+    leaderId(newId) {
+      if (newId) this.fillFromLeader(newId)
+    },
+    'form.selectedTeam': {
+      deep: true,
+      handler(newVal) {
+        if (newVal.length === 1) {
+          this.leaderId = newVal[0]
+          this.fillFromLeader(newVal[0])
+        } else if (newVal.length === 0) {
           this.leaderId   = null
           this.autoFilled = false
+        } else {
+          if (this.leaderId && !newVal.includes(this.leaderId)) {
+            this.leaderId   = null
+            this.autoFilled = false
+          }
         }
-      }
+      },
     },
   },
 
@@ -376,7 +382,7 @@ export default {
 
           if (this.searchQuery) {
             const q = this.searchQuery.toLowerCase();
-            return m.name.toLowerCase().includes(q) || (m.role && m.role.toLowerCase().includes(q));
+            return m.name.toLowerCase().includes(q) || (m.grade && m.grade.toLowerCase().includes(q));
           }
 
           if (this.filter.peloton_id && m.peloton_id != this.filter.peloton_id) return false;
@@ -430,9 +436,7 @@ export default {
         this.form.startTime &&
         this.form.location.trim() &&
         this.form.selectedTeam.length > 0 &&
-        leaderOk &&
-        this.form.clientName.trim() &&
-        this.form.clientPhone.trim()
+        leaderOk
       )
     },
   },
@@ -469,9 +473,8 @@ export default {
     fillFromLeader(id) {
       const member = this.team.find(m => m.id === id)
       if (!member) return
-      this.form.clientName  = member.name         || ''
+      this.form.clientName  = member.name          || ''
       this.form.clientPhone = member.phone_number  || ''
-      this.form.clientEmail = member.email         || ''
       this.autoFilled       = true
     },
     saveMission() {

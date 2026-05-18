@@ -14,15 +14,13 @@
             <span class="dot dot-gray"></span>{{ counts.unavailable }} indisponible{{ counts.unavailable > 1 ? 's' : '' }}
           </p>
         </div>
-        <div class="search-box">
-          <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input
-            v-model="search"
-            type="text"
-            placeholder="Rechercher un agent..."
-            class="search-input"
-          />
-          <button v-if="search" class="search-clear" @click="search = ''">✕</button>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <div class="search-box">
+            <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input v-model="search" type="text" placeholder="Rechercher un agent..." class="search-input" />
+            <button v-if="search" class="search-clear" @click="search = ''">✕</button>
+          </div>
+          <button v-if="$page.props.auth.can.manage_personnel" class="btn-add-personnel" @click="openCreate">+ Nouveau membre</button>
         </div>
       </div>
 
@@ -75,7 +73,8 @@
           v-for="agent in filteredPersonnel"
           :key="agent.id"
           class="agent-card"
-          :class="'card-' + agent.computed_status"
+          :class="['card-' + agent.computed_status, { 'card-clickable': $page.props.auth.can.manage_personnel }]"
+          @click="$page.props.auth.can.manage_personnel && openEdit(agent)"
         >
           <!-- AVATAR + STATUT -->
           <div class="agent-top">
@@ -91,7 +90,12 @@
           <!-- INFOS -->
           <div class="agent-info">
             <h3 class="agent-name">{{ agent.name }}</h3>
-            <p class="agent-rank">{{ agent.role }}</p>
+            <p class="agent-rank">
+              <span v-if="agent.grade" class="agent-grade">{{ agent.grade }}</span>
+              <span v-if="agent.grade && agent.fonction"> · </span>
+              <span v-if="agent.fonction">{{ agent.fonction }}</span>
+              <span v-if="agent.numero_incorporation" class="agent-incorp"> · N° {{ agent.numero_incorporation }}</span>
+            </p>
             <div class="agent-unit" v-if="agent.peloton || agent.groupe || agent.equipe">
               <span class="unit-badge peloton" v-if="agent.peloton">{{ agent.peloton.nom }}</span>
               <span class="unit-badge groupe" v-if="agent.groupe">{{ agent.groupe.nom }}</span>
@@ -111,23 +115,27 @@
             <span>Aucune opération en cours</span>
           </div>
 
-          <!-- STATS -->
+          <!-- STATS + BADGE COMPTE -->
           <div class="agent-stats">
             <div class="stat">
               <span class="stat-value">{{ agent.missions_count }}</span>
               <span class="stat-label">missions</span>
             </div>
+            <span v-if="agent.has_account" class="account-badge">🔑 Compte app</span>
           </div>
 
-          <!-- MOTIF + DURÉE INDISPONIBILITÉ -->
-          <div v-if="agent.computed_status === 'unavailable' && (agent.unavailability_reason || agent.unavailability_start_date)" class="unavailability-reason">
+          <!-- MOTIF INDISPONIBILITÉ -->
+          <div v-if="agent.computed_status === 'unavailable' && agent.unavailability_reason" class="unavailability-reason">
             <span class="reason-icon">🚫</span>
             <div class="reason-body">
-              <span v-if="agent.unavailability_reason" class="reason-text">{{ agent.unavailability_reason }}</span>
-              <span v-if="agent.unavailability_start_date && agent.unavailability_duration" class="reason-until">
-                Jusqu'au <strong>{{ unavailabilityEndDate(agent) }}</strong>
-              </span>
+              <span class="reason-text">{{ agent.unavailability_reason }}</span>
             </div>
+          </div>
+
+          <!-- DATE DE RETOUR INDISPONIBILITÉ -->
+          <div v-if="agent.computed_status === 'unavailable' && unavailabilityEndDate(agent)" class="leave-info">
+            <span class="leave-icon">📅</span>
+            <span class="leave-text">Retour prévu le <strong>{{ unavailabilityEndDate(agent) }}</strong></span>
           </div>
 
           <!-- CONGÉ EN COURS -->
@@ -144,7 +152,7 @@
             </div>
             <button
               class="confirm-return-btn"
-              @click="confirmReturn(agent)"
+              @click.stop="confirmReturn(agent)"
               :disabled="saving === agent.id"
             >
               {{ saving === agent.id ? 'Enregistrement…' : '✓ Confirmer le retour en service' }}
@@ -160,7 +168,7 @@
                 :key="opt.value"
                 class="ctrl-btn"
                 :class="['ctrl-' + opt.value, { active: agent.availability === opt.value }]"
-                @click="handleAvailabilityClick(agent, opt.value)"
+                @click.stop="handleAvailabilityClick(agent, opt.value)"
                 :disabled="saving === agent.id"
               >
                 {{ opt.label }}
@@ -168,7 +176,7 @@
             </div>
 
             <!-- SAISIE DURÉE CONGÉ -->
-            <div v-if="leaveDraft.agentId === agent.id" class="leave-form">
+            <div v-if="leaveDraft.agentId === agent.id" class="leave-form" @click.stop>
               <span class="leave-form-label">Durée du congé :</span>
               <div class="leave-form-row">
                 <input
@@ -183,15 +191,15 @@
                   <option value="days">Jours</option>
                   <option value="months">Mois</option>
                 </select>
-                <button class="leave-confirm" @click="confirmLeave(agent)" :disabled="!leaveDraft.duration">
+                <button class="leave-confirm" @click.stop="confirmLeave(agent)" :disabled="!leaveDraft.duration">
                   Confirmer
                 </button>
-                <button class="leave-cancel" @click="leaveDraft.agentId = null">✕</button>
+                <button class="leave-cancel" @click.stop="leaveDraft.agentId = null">✕</button>
               </div>
             </div>
 
             <!-- SAISIE MOTIF + DURÉE INDISPONIBILITÉ -->
-            <div v-if="unavailabilityDraft.agentId === agent.id" class="leave-form">
+            <div v-if="unavailabilityDraft.agentId === agent.id" class="leave-form" @click.stop>
               <span class="leave-form-label">Indisponibilité :</span>
               <div class="reason-form-row">
                 <input
@@ -215,10 +223,10 @@
                   <option value="days">Jours</option>
                   <option value="months">Mois</option>
                 </select>
-                <button class="leave-confirm" @click="confirmUnavailability(agent)" :disabled="!unavailabilityDraft.duration">
+                <button class="leave-confirm" @click.stop="confirmUnavailability(agent)" :disabled="!unavailabilityDraft.duration">
                   Confirmer
                 </button>
-                <button class="leave-cancel" @click="unavailabilityDraft.agentId = null">✕</button>
+                <button class="leave-cancel" @click.stop="unavailabilityDraft.agentId = null">✕</button>
               </div>
             </div>
           </div>
@@ -226,10 +234,90 @@
             <span class="deployed-note">Retour auto à la fin de l'opération</span>
           </div>
 
+
         </div>
       </div>
 
     </div>
+
+    <!-- MODAL CRÉER / MODIFIER -->
+    <div v-if="modal.open" class="modal-overlay" @click.self="closeModal">
+      <div class="modal-box">
+        <h2 class="modal-title">{{ modal.mode === 'create' ? 'Nouveau membre du personnel' : 'Modifier le membre' }}</h2>
+
+        <div class="form-group">
+          <label class="form-label">Nom complet *</label>
+          <input v-model="form.name" type="text" class="form-input" placeholder="Prénom Nom" />
+          <span v-if="errors.name" class="form-error">{{ errors.name }}</span>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">N° Incorporation</label>
+            <input v-model="form.numero_incorporation" type="text" class="form-input" placeholder="Ex: AG-042" />
+            <span v-if="errors.numero_incorporation" class="form-error">{{ errors.numero_incorporation }}</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Grade</label>
+            <input v-model="form.grade" type="text" class="form-input" placeholder="Ex: Adjudant-chef" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Fonction</label>
+          <input v-model="form.fonction" type="text" class="form-input" placeholder="Ex: Chef de groupe" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Téléphone WhatsApp</label>
+          <input v-model="form.phone_number" type="tel" class="form-input" placeholder="+226 XX XX XX XX" />
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">Peloton</label>
+            <select v-model="form.peloton_id" class="form-input" @change="form.groupe_id = null; form.equipe_id = null">
+              <option :value="null">-- Aucun --</option>
+              <option v-for="p in pelotons" :key="p.id" :value="p.id">{{ p.nom }}</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Groupe</label>
+            <select v-model="form.groupe_id" class="form-input" :disabled="!form.peloton_id" @change="form.equipe_id = null">
+              <option :value="null">-- Aucun --</option>
+              <option v-for="g in availableFormGroupes" :key="g.id" :value="g.id">{{ g.nom }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Équipe</label>
+          <select v-model="form.equipe_id" class="form-input" :disabled="!form.groupe_id">
+            <option :value="null">-- Aucune --</option>
+            <option v-for="e in availableFormEquipes" :key="e.id" :value="e.id">{{ e.nom }}</option>
+          </select>
+        </div>
+
+        <div class="modal-footer">
+          <button
+            v-if="modal.mode === 'edit'"
+            class="btn-delete-modal"
+            @click="confirmDelete(modal.agent)"
+            :disabled="saving === 'modal'"
+            title="Supprimer ce membre"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          </button>
+          <div style="display:flex; gap:10px; margin-left:auto;">
+            <button class="btn-secondary" @click="closeModal">Annuler</button>
+            <button class="btn-primary-modal" @click="submitForm" :disabled="saving === 'modal'">
+              {{ saving === 'modal' ? 'Enregistrement…' : (modal.mode === 'create' ? 'Créer' : 'Enregistrer') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </AppLayout>
 </template>
 
@@ -264,6 +352,9 @@ export default {
         equipe_id:  null,
       },
       sortBy: 'status',
+      modal: { open: false, mode: 'create', agent: null },
+      form: { name: '', numero_incorporation: '', grade: '', fonction: '', phone_number: '', peloton_id: null, groupe_id: null, equipe_id: null },
+      errors: {},
     }
   },
 
@@ -279,7 +370,7 @@ export default {
           return a.name.localeCompare(b.name)
         }
         if (this.sortBy === 'role') {
-          return (a.role || '').localeCompare(b.role || '')
+          return (a.grade || '').localeCompare(b.grade || '')
         }
         if (this.sortBy === 'missions') {
           return b.missions_count - a.missions_count
@@ -322,7 +413,7 @@ export default {
 
       if (this.search.trim()) {
         const q = this.search.toLowerCase()
-        list = list.filter(p => p.name.toLowerCase().includes(q) || p.role?.toLowerCase().includes(q))
+        list = list.filter(p => p.name.toLowerCase().includes(q) || p.grade?.toLowerCase().includes(q) || p.fonction?.toLowerCase().includes(q) || p.numero_incorporation?.toLowerCase().includes(q))
       }
 
       if (this.filter.peloton_id && this.filter.peloton_id !== 'null') {
@@ -357,6 +448,16 @@ export default {
       const groupe = groupes.find(g => String(g.id) === String(this.filter.groupe_id))
       return groupe ? groupe.equipes : []
     },
+    availableFormGroupes() {
+      if (!this.form.peloton_id) return []
+      const peloton = this.pelotons.find(p => String(p.id) === String(this.form.peloton_id))
+      return peloton ? peloton.groupes : []
+    },
+    availableFormEquipes() {
+      if (!this.form.groupe_id) return []
+      const groupe = this.availableFormGroupes.find(g => String(g.id) === String(this.form.groupe_id))
+      return groupe ? groupe.equipes : []
+    },
     counts() {
       return {
         available:     this.personnel.filter(p => p.computed_status === 'available').length,
@@ -370,6 +471,57 @@ export default {
   },
 
   methods: {
+    openCreate() {
+      this.form = { name: '', numero_incorporation: '', grade: '', fonction: '', phone_number: '', peloton_id: null, groupe_id: null, equipe_id: null }
+      this.errors = {}
+      this.modal = { open: true, mode: 'create', agent: null }
+    },
+    openEdit(agent) {
+      this.form = {
+        name:                 agent.name,
+        numero_incorporation: agent.numero_incorporation ?? '',
+        grade:                agent.grade ?? '',
+        fonction:             agent.fonction ?? '',
+        phone_number:         agent.phone_number ?? '',
+        peloton_id:           agent.peloton_id ?? null,
+        groupe_id:            agent.groupe_id ?? null,
+        equipe_id:            agent.equipe_id ?? null,
+      }
+      this.errors = {}
+      this.modal = { open: true, mode: 'edit', agent }
+    },
+    closeModal() {
+      this.modal.open = false
+    },
+    submitForm() {
+      this.errors = {}
+      if (!this.form.name.trim()) { this.errors.name = 'Le nom est requis.'; return }
+      this.saving = 'modal'
+      if (this.modal.mode === 'create') {
+        router.post(route('personnel.store'), this.form, {
+          preserveScroll: true,
+          onSuccess: () => this.closeModal(),
+          onError: (e) => { this.errors = e },
+          onFinish: () => { this.saving = null },
+        })
+      } else {
+        router.put(route('personnel.update', this.modal.agent.id), this.form, {
+          preserveScroll: true,
+          onSuccess: () => this.closeModal(),
+          onError: (e) => { this.errors = e },
+          onFinish: () => { this.saving = null },
+        })
+      }
+    },
+    confirmDelete(agent) {
+      if (!confirm(`Supprimer ${agent.name} du personnel ?`)) return
+      this.closeModal()
+      this.saving = agent.id
+      router.delete(route('personnel.destroy', agent.id), {
+        preserveScroll: true,
+        onFinish: () => { this.saving = null },
+      })
+    },
     resetFilters() {
       this.filter.peloton_id = null
       this.filter.groupe_id = null
@@ -571,13 +723,15 @@ export default {
   background: white;
   border-radius: 16px;
   padding: 22px;
+  position: relative;
   box-shadow: 0 2px 12px rgba(0,0,0,.06);
   border: 2px solid transparent;
   display: flex;
   flex-direction: column;
   gap: 14px;
   transition: box-shadow 0.2s;
-  height: 355px;
+  min-height: 355px;
+  max-height: 600px;
   overflow-y: auto;
 }
 .agent-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,.1); }
@@ -620,8 +774,36 @@ export default {
 .badge-leave_expired { background: #fef3c7; color: #b45309; }
 
 /* INFOS */
-.agent-name { font-size: 16px; font-weight: 700; color: #1a1f2e; margin: 0 0 4px; }
-.agent-rank { font-size: 12px; color: #6b7280; margin: 0; }
+.agent-name   { font-size: 16px; font-weight: 700; color: #1a1f2e; margin: 0 0 4px; }
+.agent-rank   { font-size: 12px; color: #6b7280; margin: 0; }
+.agent-grade  { font-weight: 700; color: #374151; }
+.agent-incorp { font-weight: 700; color: #4f6fee; font-family: monospace; }
+
+.account-badge { font-size: 10px; font-weight: 600; color: #6b7280; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 20px; padding: 2px 7px; white-space: nowrap; }
+.card-clickable { cursor: pointer; }
+.card-clickable:hover { box-shadow: 0 6px 24px rgba(0,0,0,.1); }
+.btn-add-personnel { padding:9px 18px; background:#4f6fee; color:white; border:none; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; white-space:nowrap; }
+.btn-add-personnel:hover { background:#3a56d4; }
+
+/* MODAL */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:100; padding:20px; }
+.modal-box     { background:white; border-radius:16px; padding:32px; width:100%; max-width:520px; box-shadow:0 20px 60px rgba(0,0,0,.2); max-height:90vh; overflow-y:auto; }
+.modal-title   { font-size:18px; font-weight:700; color:#1a1f2e; margin:0 0 24px; }
+.form-group    { display:flex; flex-direction:column; gap:6px; margin-bottom:16px; }
+.form-label    { font-size:13px; font-weight:600; color:#374151; }
+.form-input    { padding:9px 12px; border:1.5px solid #e5e7eb; border-radius:8px; font-size:14px; font-family:inherit; color:#1a1f2e; outline:none; background:white; transition:border-color .15s; }
+.form-input:focus { border-color:#4f6fee; }
+.form-error    { font-size:12px; color:#dc2626; }
+.form-row-2    { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.modal-footer  { display:flex; gap:10px; justify-content:flex-end; margin-top:24px; }
+.btn-secondary      { padding:9px 18px; background:#f3f4f6; color:#374151; border:none; border-radius:10px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; }
+.btn-secondary:hover { background:#e5e7eb; }
+.btn-primary-modal  { padding:9px 18px; background:#4f6fee; color:white; border:none; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
+.btn-primary-modal:disabled { opacity:.6; cursor:wait; }
+.btn-delete-modal   { padding:9px 12px; background:#fff1f2; color:#dc2626; border:1.5px solid #fecdd3; border-radius:10px; cursor:pointer; display:flex; align-items:center; transition:all .15s; }
+.btn-delete-modal:hover:not(:disabled) { background:#fee2e2; border-color:#fca5a5; }
+.btn-delete-modal:disabled { opacity:.5; cursor:wait; }
+.modal-footer { display:flex; align-items:center; margin-top:24px; }
 
 /* UNIT BADGES */
 .agent-unit {

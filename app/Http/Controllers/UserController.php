@@ -14,36 +14,29 @@ class UserController extends Controller
 {
     public function index()
     {
-        $users = User::with('roles')
-            ->withCount('missions')
-            ->with(['peloton', 'groupe', 'equipe'])
+        $users = User::with(['roles', 'personnel'])
             ->orderBy('name')
             ->get()
             ->map(fn($user) => [
-                'id'             => $user->id,
-                'name'           => $user->name,
-                'email'          => $user->email,
-                'phone_number'   => $user->phone_number,
-                'role'           => $user->role,
-                'availability'   => $user->availability,
-                'spatie_role'    => $user->roles->first()?->name ?? 'agent',
-                'missions_count' => $user->missions_count,
-                'is_blocked'     => (bool) $user->is_blocked,
-                'peloton_id'     => $user->peloton_id,
-                'groupe_id'      => $user->groupe_id,
-                'equipe_id'      => $user->equipe_id,
-                'peloton'        => $user->peloton,
-                'groupe'         => $user->groupe,
-                'equipe'         => $user->equipe,
+                'id'          => $user->id,
+                'name'        => $user->name,
+                'email'       => $user->email,
+                'phone_number'=> $user->phone_number,
+                'spatie_role' => $user->roles->first()?->name ?? 'agent',
+                'is_blocked'  => (bool) $user->is_blocked,
+                'personnel'   => $user->personnel ? [
+                    'id'                   => $user->personnel->id,
+                    'name'                 => $user->personnel->name,
+                    'numero_incorporation' => $user->personnel->numero_incorporation,
+                    'grade'                => $user->personnel->grade,
+                ] : null,
             ]);
 
         $roles = Role::orderBy('name')->pluck('name');
-        $pelotons = \App\Models\Peloton::with(['groupes.equipes'])->get();
 
         return Inertia::render('Users/Index', [
             'users' => $users,
             'roles' => $roles,
-            'pelotons' => $pelotons,
         ]);
     }
 
@@ -54,12 +47,7 @@ class UserController extends Controller
             'email'        => 'required|email|unique:users,email',
             'phone_number' => 'nullable|string|max:20',
             'password'     => ['required', Password::min(8)],
-            'role'         => 'nullable|string|max:100',
             'spatie_role'  => 'required|exists:roles,name',
-            'availability' => 'required|in:available,on_leave,unavailable',
-            'peloton_id'   => 'nullable|exists:pelotons,id',
-            'groupe_id'    => 'nullable|exists:groupes,id',
-            'equipe_id'    => 'nullable|exists:equipes,id',
         ]);
 
         $user = User::create([
@@ -67,11 +55,6 @@ class UserController extends Controller
             'email'        => $validated['email'],
             'phone_number' => $validated['phone_number'] ?? null,
             'password'     => Hash::make($validated['password']),
-            'role'         => $validated['role'] ?? null,
-            'availability' => $validated['availability'],
-            'peloton_id'   => $validated['peloton_id'] ?? null,
-            'groupe_id'    => $validated['groupe_id'] ?? null,
-            'equipe_id'    => $validated['equipe_id'] ?? null,
         ]);
 
         $user->assignRole($validated['spatie_role']);
@@ -86,23 +69,13 @@ class UserController extends Controller
             'email'        => "required|email|unique:users,email,{$user->id}",
             'phone_number' => 'nullable|string|max:20',
             'password'     => ['nullable', Password::min(8)],
-            'role'         => 'nullable|string|max:100',
             'spatie_role'  => 'required|exists:roles,name',
-            'availability' => 'required|in:available,on_leave,unavailable',
-            'peloton_id'   => 'nullable|exists:pelotons,id',
-            'groupe_id'    => 'nullable|exists:groupes,id',
-            'equipe_id'    => 'nullable|exists:equipes,id',
         ]);
 
         $data = [
             'name'         => $validated['name'],
             'email'        => $validated['email'],
             'phone_number' => $validated['phone_number'] ?? null,
-            'role'         => $validated['role'] ?? null,
-            'availability' => $validated['availability'],
-            'peloton_id'   => $validated['peloton_id'] ?? null,
-            'groupe_id'    => $validated['groupe_id'] ?? null,
-            'equipe_id'    => $validated['equipe_id'] ?? null,
         ];
 
         if (!empty($validated['password'])) {

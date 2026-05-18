@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Console\Commands\CheckPersonnelLeaves;
+use App\Models\Personnel;
 use App\Models\User;
 use App\Notifications\AgentUnavailableNotification;
 use Illuminate\Http\Request;
@@ -14,49 +14,53 @@ class PersonnelController extends Controller
     public function index()
     {
         // Transition inline : on_leave → leave_expired si date dépassée
-        User::where('availability', 'on_leave')
+        Personnel::where('availability', 'on_leave')
             ->whereNotNull('leave_start_date')
             ->get()
-            ->filter(fn($u) => CheckPersonnelLeaves::isExpired($u))
-            ->each(function ($u) {
-                $u->update(['availability' => 'leave_expired']);
+            ->filter(fn($p) => $this->leaveIsExpired($p))
+            ->each(function ($p) {
+                $p->update(['availability' => 'leave_expired']);
                 activity('personnel')
-                    ->performedOn($u)
+                    ->performedOn($p)
                     ->withProperties(['old' => 'on_leave', 'new' => 'leave_expired'])
-                    ->log("Congé de « {$u->name} » arrivé à échéance — retour à confirmer");
+                    ->log("Congé de « {$p->name} » arrivé à échéance — retour à confirmer");
             });
 
-        $personnel = User::withCount('missions')
+        $personnel = Personnel::withCount('missions')
             ->with([
                 'missions' => fn($q) => $q->where('status', 'in_progress')
                     ->select('missions.id', 'missions.title', 'missions.location', 'missions.priority'),
                 'peloton',
                 'groupe',
-                'equipe'
+                'equipe',
+                'user',
             ])
             ->get()
-            ->map(fn($user) => [
-                'id'               => $user->id,
-                'name'             => $user->name,
-                'role'             => $user->role,
-                'avatar'           => $user->avatar,
-                'availability'     => $user->availability,
-                'leave_start_date'       => $user->leave_start_date?->toDateString(),
-                'leave_duration'         => $user->leave_duration,
-                'leave_unit'             => $user->leave_unit,
-                'unavailability_reason'       => $user->unavailability_reason,
-                'unavailability_start_date'   => $user->unavailability_start_date?->toDateString(),
-                'unavailability_duration'     => $user->unavailability_duration,
-                'unavailability_unit'         => $user->unavailability_unit,
-                'missions_count'         => $user->missions_count,
-                'active_mission'   => $user->missions->first(),
-                'computed_status'  => $user->missions->isNotEmpty() ? 'deployed' : $user->availability,
-                'peloton_id'       => $user->peloton_id,
-                'groupe_id'        => $user->groupe_id,
-                'equipe_id'        => $user->equipe_id,
-                'peloton'          => $user->peloton,
-                'groupe'           => $user->groupe,
-                'equipe'           => $user->equipe,
+            ->map(fn($p) => [
+                'id'                          => $p->id,
+                'name'                        => $p->name,
+                'numero_incorporation'        => $p->numero_incorporation,
+                'grade'                       => $p->grade,
+                'fonction'                    => $p->fonction,
+                'avatar'                      => $p->avatar ?? $p->user?->avatar,
+                'availability'                => $p->availability,
+                'leave_start_date'            => $p->leave_start_date?->toDateString(),
+                'leave_duration'              => $p->leave_duration,
+                'leave_unit'                  => $p->leave_unit,
+                'unavailability_reason'       => $p->unavailability_reason,
+                'unavailability_start_date'   => $p->unavailability_start_date?->toDateString(),
+                'unavailability_duration'     => $p->unavailability_duration,
+                'unavailability_unit'         => $p->unavailability_unit,
+                'missions_count'              => $p->missions_count,
+                'active_mission'              => $p->missions->first(),
+                'computed_status'             => $p->missions->isNotEmpty() ? 'deployed' : $p->availability,
+                'peloton_id'                  => $p->peloton_id,
+                'groupe_id'                   => $p->groupe_id,
+                'equipe_id'                   => $p->equipe_id,
+                'peloton'                     => $p->peloton,
+                'groupe'                      => $p->groupe,
+                'equipe'                      => $p->equipe,
+                'has_account'                 => $p->user_id !== null,
             ]);
 
         $pelotons = \App\Models\Peloton::with(['groupes.equipes'])->get();
@@ -67,19 +71,62 @@ class PersonnelController extends Controller
         ]);
     }
 
-    public function updateAvailability(Request $request, User $user)
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'name'                 => 'required|string|max:255',
+            'numero_incorporation' => 'nullable|string|max:50|unique:personnel,numero_incorporation',
+            'grade'                => 'nullable|string|max:100',
+            'fonction'             => 'nullable|string|max:100',
+            'phone_number'         => 'nullable|string|max:20',
+            'peloton_id'           => 'nullable|exists:pelotons,id',
+            'groupe_id'            => 'nullable|exists:groupes,id',
+            'equipe_id'            => 'nullable|exists:equipes,id',
+        ]);
+
+        Personnel::create($data);
+
+        return back()->with('success', "{$data['name']} a été ajouté au personnel.");
+    }
+
+    public function update(Request $request, Personnel $personnel)
+    {
+        $data = $request->validate([
+            'name'                 => 'sometimes|string|max:255',
+            'numero_incorporation' => "nullable|string|max:50|unique:personnel,numero_incorporation,{$personnel->id}",
+            'grade'                => 'nullable|string|max:100',
+            'fonction'             => 'nullable|string|max:100',
+            'phone_number'         => 'nullable|string|max:20',
+            'peloton_id'           => 'nullable|exists:pelotons,id',
+            'groupe_id'            => 'nullable|exists:groupes,id',
+            'equipe_id'            => 'nullable|exists:equipes,id',
+        ]);
+
+        $personnel->update($data);
+
+        return back()->with('success', "{$personnel->name} mis à jour.");
+    }
+
+    public function destroy(Personnel $personnel)
+    {
+        $name = $personnel->name;
+        $personnel->delete();
+
+        return back()->with('success', "{$name} supprimé du personnel.");
+    }
+
+    public function updateAvailability(Request $request, Personnel $personnel)
     {
         $request->validate([
-            'availability'          => 'required|in:available,on_leave,unavailable',
-            'leave_duration'        => 'required_if:availability,on_leave|nullable|integer|min:1|max:365',
-            'leave_unit'            => 'required_if:availability,on_leave|nullable|in:days,months',
+            'availability'            => 'required|in:available,on_leave,unavailable',
+            'leave_duration'          => 'required_if:availability,on_leave|nullable|integer|min:1|max:365',
+            'leave_unit'              => 'required_if:availability,on_leave|nullable|in:days,months',
             'unavailability_reason'   => 'nullable|string|max:255',
             'unavailability_duration' => 'required_if:availability,unavailable|nullable|integer|min:1|max:365',
             'unavailability_unit'     => 'required_if:availability,unavailable|nullable|in:days,months',
         ]);
 
-        $oldAvailability = $user->availability;
-
+        $oldAvailability = $personnel->availability;
         $updateData = ['availability' => $request->availability];
 
         if ($request->availability === 'on_leave') {
@@ -105,26 +152,26 @@ class PersonnelController extends Controller
             $updateData['unavailability_unit']       = null;
         }
 
-        $user->update($updateData);
+        $personnel->update($updateData);
 
         if (in_array($request->availability, ['on_leave', 'unavailable'])) {
             $adminsManagers = User::role(['admin', 'manager'])->where('id', '!=', auth()->id())->get();
-            Notification::send($adminsManagers, new AgentUnavailableNotification($user, $request->availability));
+            Notification::send($adminsManagers, new AgentUnavailableNotification($personnel, $request->availability));
         }
 
         $labels = ['available' => 'Disponible', 'on_leave' => 'En congé', 'unavailable' => 'Indisponible'];
         activity('personnel')
             ->causedBy(auth()->user())
-            ->performedOn($user)
+            ->performedOn($personnel)
             ->withProperties(['old' => $oldAvailability, 'new' => $request->availability])
-            ->log("Disponibilité de « {$user->name} » : {$labels[$oldAvailability]} → {$labels[$request->availability]}");
+            ->log("Disponibilité de « {$personnel->name} » : {$labels[$oldAvailability]} → {$labels[$request->availability]}");
 
-        return back()->with('success', 'Disponibilité de ' . $user->name . ' mise à jour.');
+        return back()->with('success', 'Disponibilité de ' . $personnel->name . ' mise à jour.');
     }
 
-    public function confirmReturn(User $user)
+    public function confirmReturn(Personnel $personnel)
     {
-        $user->update([
+        $personnel->update([
             'availability'               => 'available',
             'leave_start_date'           => null,
             'leave_duration'             => null,
@@ -137,10 +184,22 @@ class PersonnelController extends Controller
 
         activity('personnel')
             ->causedBy(auth()->user())
-            ->performedOn($user)
+            ->performedOn($personnel)
             ->withProperties(['old' => 'leave_expired', 'new' => 'available'])
-            ->log("Retour de service de « {$user->name} » confirmé");
+            ->log("Retour de service de « {$personnel->name} » confirmé");
 
-        return back()->with('success', $user->name . ' est de retour en service.');
+        return back()->with('success', $personnel->name . ' est de retour en service.');
+    }
+
+    private function leaveIsExpired(Personnel $p): bool
+    {
+        if (!$p->leave_start_date || !$p->leave_duration || !$p->leave_unit) return false;
+        $end = $p->leave_start_date->copy();
+        if ($p->leave_unit === 'months') {
+            $end->addMonths($p->leave_duration);
+        } else {
+            $end->addDays($p->leave_duration);
+        }
+        return now()->greaterThan($end);
     }
 }
