@@ -27,17 +27,17 @@ class RolesAndPermissionsSeeder extends Seeder
         ];
 
         foreach ($permissions as $permission) {
-            Permission::create(['name' => $permission]);
+            Permission::firstOrCreate(['name' => $permission]);
         }
 
         // --- Rôles et attribution des permissions ---
 
         // Admin : accès total
-        $admin = Role::create(['name' => 'admin']);
+        $admin = Role::firstOrCreate(['name' => 'admin']);
         $admin->givePermissionTo(Permission::all());
 
         // Manager : gestion des missions et du personnel
-        $manager = Role::create(['name' => 'manager']);
+        $manager = Role::firstOrCreate(['name' => 'manager']);
         $manager->givePermissionTo([
             'view missions',
             'create missions',
@@ -50,7 +50,7 @@ class RolesAndPermissionsSeeder extends Seeder
         ]);
 
         // Agent : consultation et mise à jour de statut uniquement
-        $technicien = Role::create(['name' => 'agent']);
+        $technicien = Role::firstOrCreate(['name' => 'agent']);
         $technicien->givePermissionTo([
             'view missions',
             'update mission status',
